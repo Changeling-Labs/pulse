@@ -1225,8 +1225,11 @@ async function renderSettings(el) {
       </div>
     </div>
 
-    <div style="text-align:center;padding:24px 0 8px;font-size:12px;color:var(--text-3)">
+    <div style="text-align:center;padding:24px 0 4px;font-size:12px;color:var(--text-3)">
       Iron Log v${VERSION} · ${BUILD_DATE}
+    </div>
+    <div style="text-align:center;padding:0 0 8px;font-size:12px">
+      <a href="../privacy.html" style="color:var(--text-2);text-decoration:underline">Privacy Policy</a>
     </div>`;
 
   renderPlateEditor();
