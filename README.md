@@ -2,7 +2,7 @@
 
 > **A local-first, zero-cost, open-source health engine built to combat chronic disease through lifelong physical capability, metabolic tracking, and recovery.**
 
-**Pulse** is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. Phase 1 (the movement engine) shipped as Iron Log v1.8.2; Pulse rebrands and extends it into a general health app: **Pulse Move** (strength, circuits, intervals), **Pulse Fuel** (nutrition) and **Pulse Recover** (mobility, sleep, rest).
+**Pulse** is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. The movement engine shipped as Iron Log v1.8.2; Pulse extends it into a general health app: **Pulse Move** (strength, circuits, intervals), **Pulse Fuel** (nutrition) and **Pulse Recover** (mobility, sleep, rest).
 
 ## 🎯 The Mission: Why Pulse Exists
 
@@ -21,8 +21,9 @@ Global Annual Mortality by Primary Cause (Millions)
 ```
 
 - **80% Preventable:** Up to 80% of premature heart attacks and strokes are preventable through lifestyle modifications — specifically cardiorespiratory fitness, muscle mass retention, metabolic control, and stress management.
+- **Diet as the Primary Driver:** Poor dietary quality causes ~11 million deaths annually — surpassing physical inactivity as the single largest global risk factor for cardiovascular mortality.
 - **The Fitness Defense:** Cardiorespiratory fitness (VO₂ max) and muscle strength show an inverse, linear relationship with all-cause mortality. High muscle mass and functional capacity delay arterial aging and metabolic decay by decades.
-- **The Accessibility Gap:** Most health apps lock basic tracking, habit building, and data export behind monthly subscriptions. **Pulse is permanently free, non-profit, private, and fully functional offline.**
+- **The Accessibility & Knowledge Gap:** Most health apps lock basic tracking behind subscriptions, while social media spreads dangerous nutritional myths. **Pulse combines frictionless, low-cost tracking with embedded, science-backed micro-education.**
 
 ## 🎨 Branding & Aesthetic Vision
 
@@ -33,7 +34,7 @@ Global Annual Mortality by Primary Cause (Millions)
 
 ## 🏗️ Architecture & Core Principles
 
-Pulse is built as a **Local-First Micro-Kernel**. The client-side database (IndexedDB) is the single source of truth. The user UI never waits for network requests or cloud backends to log a set, record a meal, or run a timer.
+Pulse is built as a **Local-First Micro-Kernel**. The client-side database (IndexedDB) is the single source of truth. The UI never waits for network requests or cloud backends to log a set, record a meal, or run a timer.
 
 ```
                       ┌─────────────────────────────────┐
@@ -42,75 +43,54 @@ Pulse is built as a **Local-First Micro-Kernel**. The client-side database (Inde
                       │   Theme System, Cloud Sync)     │
                       └────────────────┬────────────────┘
                                        │
-         ┌─────────────────────────────┼─────────────────────────────┐
-         ▼                             ▼                             ▼
+        ┌──────────────────────────────┼──────────────────────────────┐
+        ▼                              ▼                              ▼
 ┌───────────────────────┐    ┌───────────────────────┐    ┌───────────────────────┐
 │     Pulse MOVE        │    │      Pulse FUEL       │    │     Pulse RECOVER     │
-│  (Strength, Circuits, │    │  (Low-Friction Macros,│    │ (Guided Mobility,     │
-│   Intervals, Plates)  │    │  Hydration, Quality)  │    │  Sleep, Rest Protocols)│
+│  (Strength, Circuits, │    │  (Hand-Portions,      │    │ (Guided Mobility,     │
+│   Intervals, Plates)  │    │  Protein, Myth Cards) │    │  Sleep, Rest Protocols)│
 └───────────────────────┘    └───────────────────────┘    └───────────────────────┘
 ```
 
 1. **Offline-First:** Runs completely client-side. Service Worker caching guarantees full functionality in gym basements or remote trails.
-2. **Zero-Cost Backend:** Local-first sync architecture (IndexedDB + optional background sync), keeping infrastructure costs near zero.
+2. **Zero-Cost Backend:** Local-first sync architecture (IndexedDB + optional encrypted Supabase background sync), keeping infrastructure costs near zero.
 3. **Data Sovereignty:** Full JSON/CSV data export and import. Your health data remains yours forever.
 
-## 🗺️ Product Roadmap & Development Plan
+> **Two databases.** Pulse Move records live in the *shared* `iron-log` store (see Data model) — open at `DB_VERSION = 3` forever. Pulse **Fuel** logs live in their own `pulse-fuel` database (version 1), because Fuel needs new object stores and the shared store must not change. Both are exported/imported by the backup system.
 
-### Phase 1: Core Foundation & Movement Engine (Complete — v2.0.0) ✅
+## 🗺️ Product Roadmap & Developer Execution Plan
 
-- [x] **Data Foundation:** Multi-metric set logging (weight/reps, time, distance, output) with schema migration layers (`schema.js`).
-- [x] **Input Optimization:** Dynamic weight/rep modal with live barbell plate loader and rep steppers.
-- [x] **Structure & Timing:** Superset/circuit containers with round-based pacing and background-resilient rest/interval timers (`timer.js`).
-- [x] **Unit & Equipment Support:** Imperial/metric display handling, literal plate inventory management.
-- [x] **Pulse Rebrand (v2.0.0):** Pulse identity, charcoal/crimson theme, PWA manifest and icons. Existing installs keep their data — the IndexedDB name is unchanged on purpose.
+Note for AI Coding Agents and Developers: follow the execution steps sequentially. Do not modify completed phases unless fixing a failing test.
 
-### Phase 2: Refactor & Cloud Sync Engine (Q1 2027) 🚧
+### Phase 1: Core Foundation & Movement Engine (Complete — v1.8.2) ✅
 
-- [ ] **Kernel Extraction:** Refactor monolithic `app.js` into modular domain drivers (`/kernel`, `/modules/move`).
-- [x] **Dynamic Metric & PR Engine:** Exercises carry multiple concurrent metrics (v2.1.0) — e.g., time + distance for a rower — with per-metric bests (volume for strength, lowest time, longest distance, best output) in the PRs tab.
-- [ ] **Cloud Sync Engine:** Implement optional, zero-cost cloud sync using Supabase Auth + local-first delta backups.
+- [x] Data Foundation: Multi-metric set logging with schema migration layers (`js/schema.js`).
+- [x] Input Optimization: Dynamic weight/rep modal with live barbell plate loader and rep steppers (`js/calc.js`).
+- [x] Structure & Timing: Superset/circuit containers with round-based pacing and background-resilient rest/interval timers (`js/timer.js`, `js/circuits.js`).
+- [x] Unit & Equipment Support: Imperial/metric display handling, literal plate inventory management.
+- [x] Dynamic Metric & PR Engine (Pulse v2.1.0): Exercises declare multiple metrics; composite sets; per-metric bests in the PRs tab.
 
-### Phase 3: Pulse Recover — Mobility & Rest Protocols (Q2 2027) 📅
+### Phase 2: Pulse FUEL — Low-Friction Nutrition & Education (Complete — v2.2.0) ✅
 
-- [ ] **Guided Stretching:** Utilize the existing interval timer to build step-by-step mobility routines.
-- [ ] **EMOM & Work-Interval Engine:** Full support for EMOM, Tabata, and timed hold protocols.
-- [ ] **Recovery & Fatigue Logging:** Simple daily metrics for sleep quality, resting heart rate, and subjective soreness.
+- [x] **Schema Extension & Data Layer** — `fuel_logs` + `water_logs` in a dedicated `pulse-fuel` database (`js/db.js`); `normalizeFuelLog`/`validateFuelLog`/`normalizeWaterLog` in `js/schema.js`; backups export both arrays (`BACKUP_VERSION` 4).
+- [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: `calcHandPortions()` (25g protein/palm, 15g carb/cupped, 10g fat/thumb), 10 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
+- [x] **UI & Tab Integration** — Fuel tab with hand-portion estimator modal, protein/quality/hydration meters, daily myth card, `pulse-fuel` persistence.
 
-### Phase 4: Pulse Fuel — Low-Friction Nutrition (Q3 2027) 📅
+### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 📅
 
-- [ ] **Simplified Macro Engine:** Focus on high-value targets (protein, total calories, hydration, food quality) without burdensome 100,000-item barcode database overhead.
-- [ ] **Portion-Based Estimator:** Quick-log options for hand-portion estimates and daily protein goals.
+- [ ] **Step 3.1: Kernel Extraction** — Refactor `app.js` into a lightweight shell (`js/kernel/shell.js`); move movement logic to `js/modules/move/`, nutrition logic to `js/modules/fuel/`.
+- [ ] **Step 3.2: Local-First Supabase Sync Engine** — Optional Supabase Auth; a local-first `sync_queue` in IndexedDB pushing row-level JSON deltas when online, queuing offline.
 
-### Phase 5: Holistic Health Insights & Integrations (Q4 2027) 📅
+### Phase 4: Pulse RECOVER — Mobility & Rest Protocols (Q2 2027) 📅
 
-- [ ] **Cardiovascular & Metabolic Analytics:** Automated trend lines correlating movement volume, recovery markers, and metabolic consistency.
-- [ ] **Integrations & Export:** Open export paths for Obsidian, Notion, Apple Health, and Strava.
-- [ ] **Native Mobile Packages:** Optional Capacitor/Ionic wrappers for distribution on iOS App Store and Google Play.
+- [ ] **Step 4.1: Guided Stretching & Timed Protocols** — Extend `js/timer.js` for multi-step mobility routines, EMOM/Tabata protocols.
+- [ ] **Step 4.2: Recovery & Fatigue Tracking** — `recovery_logs` store for daily sleep duration, subjective soreness, resting heart rate.
 
-## Project structure
+### Phase 5: Holistic Health Insights & Integrations (Q3 2027) 📅
 
-```
-pulse/
-  index.html        # App shell + log modal
-  manifest.json     # PWA manifest
-  sw.js             # Service worker (offline support)
-  css/app.css       # All styles
-  js/
-    app.js          # Main app logic
-    db.js           # IndexedDB data layer
-    schema.js       # Set schema, validation, backup migration
-    circuits.js     # Circuit grouping (supersets)
-    timer.js        # Rest countdown model
-    pr.js           # Dynamic PR engine (bests per metric)
-    dates.js        # Local calendar-day helpers
-    calc.js         # Plate calculator + session plan
-    confetti.js     # Set completion celebration
-    backup.js       # JSON export/import
-    version.js      # Version string
-  test/             # Node built-in test runner
-  icons/            # App icons
-```
+- [ ] Cardiovascular & Metabolic Analytics: automated trend lines correlating movement volume, recovery markers, and metabolic consistency.
+- [ ] Integrations & Export: open export paths for Obsidian, Notion, Apple Health, and Strava.
+- [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
 ## Running locally
 
@@ -120,22 +100,34 @@ Serve over HTTP (required for ES modules):
 python3 -m http.server 8080
 ```
 
-## Deploying to GitHub Pages
+## Project structure
 
-1. Create a GitHub repo and push this folder
-2. Settings → Pages → Source: main branch, root
-3. Live at `https://edmundashdown.github.io/pulse`
-4. On iPhone: Safari → Share → Add to Home Screen
-
-## Versioning
-
-Bump `js/version.js` with each release. Shows in Settings tab.
+```
+pulse/
+  index.html        # App shell + log & fuel modals
+  manifest.json     # PWA manifest
+  sw.js             # Service worker (offline support)
+  css/app.css       # All styles
+  js/
+    app.js          # Main app logic
+    db.js           # IndexedDB layer (shared `iron-log` store + `pulse-fuel` DB)
+    schema.js       # Set/exercise/fuel schema, validation, backup migration
+    circuits.js     # Circuit grouping (supersets)
+    timer.js        # Rest countdown model
+    dates.js        # Local calendar-day helpers
+    calc.js         # Plate calculator + session plan
+    confetti.js     # Set completion celebration
+    backup.js       # JSON export/import (exercises, sets, fuel, water, equipment)
+    pr.js           # Dynamic PR engine (bests per metric)
+    fuel.js         # Pulse Fuel logic (hand portions, myth cards)
+    version.js      # Version string
+  test/             # Node built-in test runner
+  icons/            # App icons
+```
 
 ## Data model
 
-A logged set carries the fields for **every metric its exercise declares**
-(see `js/schema.js`). `type` records the *primary* metric (the first one
-declared) for backwards compatibility:
+**Move.** A logged set carries the fields for **every metric its exercise declares** (see `js/schema.js`). `type` records the *primary* metric (the first one declared) for backwards compatibility:
 
 | Metric     | Fields                 | Example          |
 |------------|------------------------|------------------|
@@ -144,78 +136,46 @@ declared) for backwards compatibility:
 | `distance` | `distance` (metres)    | 5 km             |
 | `output`   | `output` (count)       | 30 calories      |
 
-An exercise can declare several metrics at once — e.g. a **Rowing** exercise
-with `metrics: ["distance", "timed"]` logs `distance: 2000, duration: 420` in
-**one** record. The Log modal renders every declared metric's inputs, and
-validation requires all of them.
+An exercise can declare several metrics at once — e.g. a **Rowing** exercise with `metrics: ["distance", "timed"]` logs `distance: 2000, duration: 420` in **one** record. Every set also stores `exerciseId`, `date`, `notes`, and — for circuit members — `groupId`, `round`, `restSec`.
 
-Every set also stores `exerciseId`, `date` (`YYYY-MM-DD`), `notes`, and —
-for circuit members — `groupId`, `round` and `restSec`. Records written
-before v2 have no `type` and are treated as `strength`.
+**Fuel.** One row per eating moment, in the `pulse-fuel` database (`fuel_logs`, keyPath `id`; indexes `by_date`, `by_timestamp`):
 
-Each exercise declares its metric list in Settings → Exercises (toggle pills;
-at least one required). The Log modal renders the matching inputs, and the
-Planner offers weight/reps lifts only.
+```json
+{
+  "id": "uuid",
+  "timestamp": "2026-11-05T19:04:12.000Z",
+  "date": "2026-11-05",
+  "proteinGrams": 50,
+  "calories": 350,
+  "isWholeFood": true,
+  "handPortions": { "palms": 2, "fists": 1, "cupped": 1, "thumbs": 1 },
+  "notes": "chicken bowl"
+}
+```
 
-> **Shared database with Iron Log (v2.0.0+).** Pulse deliberately keeps the
-> IndexedDB name `iron-log`, so existing Iron Log installs keep their history.
-> Iron Log opens the same store at `DB_VERSION = 3`, so **Pulse must never
-> bump `DB_VERSION`** — shape changes are additive and lazy. Exercise
-> `metrics` are stamped at boot (`migrateExerciseMetrics` in `js/db.js`);
-> nothing else was touched. If a future Pulse release ever needs a DB
-> upgrade, Iron Log needs one first.
+Water is one row per day in `water_logs` (`{ date, glasses }`). Hydration is deliberately not a fuel entry.
 
-> **Iron Log → Pulse data continuity.** Pulse deliberately keeps the
-> IndexedDB database name `iron-log`. Both apps are served from the same
-> origin (`edmundashdown.github.io`), so Pulse reads and writes the same
-> store — your full training history carries over. Do not rename the database
-> without a migration.
+> **Shared database with Iron Log.** Pulse keeps the IndexedDB name `iron-log` for Move data, so existing Iron Log clients keep their history. Iron Log opens that store at `DB_VERSION = 3`, so **Pulse must never bump `DB_VERSION`** — Move record changes are additive and lazy-stamped at boot (`migrateExerciseMetrics` in `js/db.js`). Fuel data needs new stores, so it lives in the separate `pulse-fuel` database. If a shared-store upgrade is ever unavoidable, Iron Log upgrades first.
 
 ### Circuits (supersets)
 
-The Log modal has a **Circuit** mode: pick two or more exercises, set a round
-count, and every round × exercise combination is written in one transaction.
-There is no separate circuit entity — the sets themselves carry a shared
-`groupId`, a 1-based `round`, and the circuit's `restSec`; sets without a
-`groupId` are standalone (see `js/circuits.js`). The Log tab groups sets by
-`groupId` and renders them round by round, with the protocol in the header and
-a block-level delete. Because the group is just fields on the sets, backups,
-restores and older app versions all keep working.
+The Log modal has a **Circuit** mode: pick two or more exercises, set a round count, and every round × exercise combination is written in one transaction. Circuit membership is carried on the sets (`groupId`, `round`, `restSec`) — there is no separate circuit entity, so backups, restores and older app versions keep working.
 
 ### Rest timer
 
-Saving a set starts a countdown in a bar above the bottom nav (default 90s;
-set it in Settings → Rest timer, or choose **Off**). The bar keeps running
-while you move between tabs, and the app beeps and vibrates at zero. The
-countdown model in `js/timer.js` is pure and unit-tested; `js/app.js` owns the
-interval, the audio and the bar.
+Saving a set starts a countdown bar above the bottom nav (default 90s). The countdown model in `js/timer.js` is pure and unit-tested; `js/app.js` owns the interval, the beep, and the bar. Circuits can override the rest between rounds.
 
-A circuit can override the rest between rounds — **Rest between rounds** in the
-circuit builder, where *Default* follows the setting above — and the saved
-circuit shows that interval in its header. **▶ Run** on a saved circuit paces
-you through it: it starts the rest for round 1, and when that finishes the
-middle button becomes **Next rest** for the following round, up to the last
-one, which ends with "Circuit done". The bar shows the round each rest leads
-into.
+### Pulse Fuel
 
-### Units
-
-Weight is stored in lbs and distance in metres, and both are *displayed* in
-the unit preference. Distance shows miles for imperial and km for metric, with
-short distances (under 0.1 mi / 1 km) staying in metres. Distance is still
-*entered* in metres, which is how erg distances are read.
+The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A science-backed **Myth Buster** card rotates daily; "Show me another" pulls a random one.
 
 ### Backup compatibility
 
-`js/backup.js` writes `version: 4` (`BACKUP_VERSION`). On import, older
-files are migrated up to the current version; files from a newer app
-version are rejected rather than silently misread. Iron Log exports
-(`iron-log-backup-*.json`, v3) migrate cleanly into Pulse.
+`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data for edmundashdown.github.io wipes both apps' Move history** — export first.
 
 ## Testing
 
-Schema, migration, date, circuit-grouping and timer logic is covered by
-Node's built-in test runner (no dependencies):
+Schema, migration, date, circuit-grouping, timer, PR and fuel logic is covered by Node's built-in test runner (no dependencies):
 
 ```bash
 npm test
@@ -229,26 +189,11 @@ The service worker is cache-first, so **serve each round on a fresh port**:
 python3 -m http.server 8913   # then 8914, 8915, …
 ```
 
-Reusing a port means the old service worker serves the previous assets and
-you end up debugging code that isn't running. A new port is a new origin, so
-it gets a clean cache and a clean IndexedDB.
-
-Assert on the DOM and on stored records rather than eyeballing a screenshot —
-it is quicker and it actually checks the data:
-
-- Drive the UI through the `window.*` handlers (`openLogModal` is reached by
-  clicking `#fab`; `setLogMode`, `addCircuitItem`, `submitLog`, `startRest` and
-  friends are global).
-- Read IndexedDB straight from the page to confirm what was written:
-  `indexedDB.open('iron-log')` → `transaction('sets').objectStore('sets').getAll()`.
-- Check `document.querySelectorAll('.circuit-block')` etc. for what rendered.
+A new port is a new origin, so it gets a clean cache and a clean IndexedDB. Assert on the DOM and on stored records rather than eyeballing a screenshot. Drive the UI through the `window.*` handlers; read IndexedDB straight from the page to confirm what was written. Note that `prompt()` is not supported by automated browser drivers — verify the settings-style flows by reading state directly.
 
 ## Releases
 
-The service worker is cache-first and precaches an explicit asset list in
-`sw.js`. **Bump the `CACHE` name on every release** and add any new module
-to `ASSETS` — otherwise installed clients keep serving the old files.
-Bump `js/version.js` at the same time.
+The service worker is cache-first and precaches an explicit asset list in `sw.js`. **Bump the `CACHE` name on every release** and add any new module to `ASSETS`. Bump `js/version.js` at the same time, and the `?v=` cache-bust on the hub's stylesheet links if hub CSS changed.
 
 ## 🤝 Open Source & Contributing
 
@@ -256,15 +201,23 @@ Pulse is an open-source project driven by a single belief: **essential health to
 
 Whether you are a developer, UI designer, or health researcher, contributions are welcome:
 
-- **Code:** Check the active roadmap items in `Phase 2: Refactor & Cloud Sync Engine`.
+- **Code:** Check the active roadmap items in `Phase 3: Refactor & Cloud Sync Engine`.
 - **Testing:** Run local unit tests via `npm test` and verify browser PWA behaviors.
 - **Documentation:** Help refine guided recovery routines and non-profit educational guides.
 
 ```bash
-git clone https://github.com/edmundashdown/pulse.git
+git clone https://github.com/EdmundAshdown/pulse.git
 cd pulse
+npm install   # dev deps: none (Node built-in test runner)
 npm test
 ```
+
+### Guidelines for AI Coding Agents
+
+1. **Never break passing tests.** Run `npm test` before and after every file change.
+2. **Strict offline-first.** Never add mandatory external API calls to the core logging workflows. All core state writes to IndexedDB first.
+3. **Keep it vanilla.** No heavy frameworks (React/Vue/Angular) or complex bundlers unless explicitly mandated by a phase specification.
+4. **Respect the shared database.** Never bump `DB_VERSION` for the `iron-log` store, and never add new stores to it — new domains get their own `pulse-*` database.
 
 ## 📄 License
 

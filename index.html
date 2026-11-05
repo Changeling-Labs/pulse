@@ -30,6 +30,9 @@
     <button class="nav-btn active" data-tab="log" aria-label="Log">
       <span class="icon">✏️</span><span>Log</span>
     </button>
+    <button class="nav-btn" data-tab="fuel" aria-label="Fuel">
+      <span class="icon">🥗</span><span>Fuel</span>
+    </button>
     <button class="nav-btn" data-tab="prs" aria-label="Personal Records">
       <span class="icon">🏆</span><span>PRs</span>
     </button>
@@ -114,6 +117,85 @@
     </div>
   </div>
 </div>
+
+<!-- Fuel modal: hand-portion estimator + whole-food flag -->
+<div class="modal-overlay" id="fuel-modal" role="dialog" aria-modal="true" aria-label="Log fuel">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="fuel-modal-title">Log fuel</div>
+
+    <div class="metric-block">
+      <div class="metric-head"><span class="metric-label">Hand portions</span></div>
+      <div class="portion-grid">
+        <div class="portion-tile">
+          <span class="portion-emoji">🥩</span>
+          <span class="portion-name">Palm</span>
+          <span class="portion-sub">~25g protein</span>
+          <div class="portion-stepper">
+            <button type="button" onclick="adjustPortion('palms', -1)" aria-label="Fewer palms">−</button>
+            <span class="portion-count" id="portion-palms">0</span>
+            <button type="button" onclick="adjustPortion('palms', 1)" aria-label="More palms">+</button>
+          </div>
+        </div>
+        <div class="portion-tile">
+          <span class="portion-emoji">🥦</span>
+          <span class="portion-name">Fist</span>
+          <span class="portion-sub">vegetables · quality</span>
+          <div class="portion-stepper">
+            <button type="button" onclick="adjustPortion('fists', -1)" aria-label="Fewer fists">−</button>
+            <span class="portion-count" id="portion-fists">0</span>
+            <button type="button" onclick="adjustPortion('fists', 1)" aria-label="More fists">+</button>
+          </div>
+        </div>
+        <div class="portion-tile">
+          <span class="portion-emoji">🍚</span>
+          <span class="portion-name">Cupped</span>
+          <span class="portion-sub">~15g carbs</span>
+          <div class="portion-stepper">
+            <button type="button" onclick="adjustPortion('cupped', -1)" aria-label="Fewer cupped hands">−</button>
+            <span class="portion-count" id="portion-cupped">0</span>
+            <button type="button" onclick="adjustPortion('cupped', 1)" aria-label="More cupped hands">+</button>
+          </div>
+        </div>
+        <div class="portion-tile">
+          <span class="portion-emoji">🥜</span>
+          <span class="portion-name">Thumb</span>
+          <span class="portion-sub">~10g fat</span>
+          <div class="portion-stepper">
+            <button type="button" onclick="adjustPortion('thumbs', -1)" aria-label="Fewer thumbs">−</button>
+            <span class="portion-count" id="portion-thumbs">0</span>
+            <button type="button" onclick="adjustPortion('thumbs', 1)" aria-label="More thumbs">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="fuel-estimate" id="fuel-estimate"><b>0 g</b> protein · <b>0</b> kcal</div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-head"><span class="metric-label">Whole food?</span><span class="metric-unit" id="fuel-whole-hint">Minimally processed</span></div>
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" id="whole-yes" onclick="setFuelWholeFood(true)">Yes</button>
+        <button type="button" class="mode-btn" id="whole-no" onclick="setFuelWholeFood(false)">No — packaged/processed</button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label for="fuel-notes">Notes</label>
+      <input type="text" id="fuel-notes" placeholder="Optional" />
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-full" onclick="closeFuelModal()">Cancel</button>
+      <button class="btn btn-primary btn-full" onclick="submitFuelLog()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('fuel-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeFuelModal();
+  });
+</script>
 
 <script>
   document.getElementById('log-modal').addEventListener('click', function(e) {

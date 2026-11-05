@@ -1,14 +1,16 @@
-import { openDB, getExercises, getSets, getEquipment } from './db.js';
+import { openDB, getExercises, getSets, getEquipment, getFuelLogs, getWaterLogs, clearFuelDB, addFuelLog, setWaterGlasses } from './db.js';
 import { VERSION } from './version.js';
 import { BACKUP_VERSION, migrateBackup, normalizeExercise } from './schema.js';
 import { localDateStr } from './dates.js';
 
 // ── Export ─────────────────────────────────────────────────
 export async function exportBackup() {
-  const [exercises, sets, equipment] = await Promise.all([
+  const [exercises, sets, equipment, fuelLogs, waterLogs] = await Promise.all([
     getExercises(),
     getSets(),        // already normalized to the current set schema
     getEquipment(),
+    getFuelLogs(),    // pulse-fuel DB
+    getWaterLogs(),
   ]);
 
   const backup = {
@@ -17,6 +19,8 @@ export async function exportBackup() {
     exportedAt: new Date().toISOString(),
     exercises,
     sets,
+    fuelLogs,
+    waterLogs,
     equipment,
   };
 
@@ -78,10 +82,11 @@ async function applyBackup(data, mode) {
   const db = await openDB();
 
   if (mode === 'replace') {
-    // Wipe existing data first
+    // Wipe existing data first — both databases
     await clearStore(db, 'exercises');
     await clearStore(db, 'sets');
     await clearStore(db, 'equipment');
+    await clearFuelDB();
   }
 
   if (mode === 'replace') {
@@ -128,6 +133,16 @@ async function applyBackup(data, mode) {
   if (data.equipment) {
     await putRecord(db, 'equipment', { id: 'barWeight', value: data.equipment.barWeight });
     await putRecord(db, 'equipment', { id: 'plates', value: data.equipment.plates });
+  }
+
+  // Fuel + water logs restore into the pulse-fuel database (separate DB).
+  // put-by-id / put-by-date semantics make re-importing the same backup
+  // idempotent in merge mode instead of duplicating rows.
+  if (Array.isArray(data.fuelLogs)) {
+    for (const log of data.fuelLogs) await addFuelLog(log);
+  }
+  if (Array.isArray(data.waterLogs)) {
+    for (const log of data.waterLogs) await setWaterGlasses(log.date, log.glasses);
   }
 }
 

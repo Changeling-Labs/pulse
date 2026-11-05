@@ -1,4 +1,4 @@
-import { normalizeSet, normalizeExercise, validateSet } from './schema.js';
+import { normalizeSet, normalizeExercise, validateSet, normalizeFuelLog, validateFuelLog, normalizeWaterLog } from './schema.js';
 
 // Pulse is the continuation of Iron Log. The IndexedDB name stays 'iron-log'
 // on purpose: same github.io origin, same database — installed clients keep
@@ -12,8 +12,15 @@ import { normalizeSet, normalizeExercise, validateSet } from './schema.js';
 // changes therefore have to be additive and lazy in Pulse: new fields are
 // written when convenient (see migrateExerciseMetrics), and old readers
 // must keep working (the normalize* helpers do exactly that).
+//
+// Fuel data is DIFFERENT: it needs new object stores, which requires an
+// upgrade. So fuel/water logs live in their own database, `pulse-fuel`
+// (version 1), owned entirely by Pulse — the shared store never changes.
+
 const DB_NAME = 'iron-log';
 const DB_VERSION = 3;
+const FUEL_DB_NAME = 'pulse-fuel';
+const FUEL_DB_VERSION = 1;
 
 let db;
 
@@ -289,4 +296,113 @@ export async function seedIfEmpty() {
   if (exercises.length > 0) return;
   const defaults = ['Back Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Romanian Deadlift', 'Barbell Row'];
   for (const name of defaults) await addExercise(name);
+}
+
+// ── Pulse Fuel — separate database ─────────────────────────
+//
+// Fuel and water logs live in `pulse-fuel`, NOT in the shared `iron-log`
+// store (see the note at the top of this file). This database is Pulse-owned,
+// so it may bump versions freely. keyPaths/indices:
+//   fuel_logs  keyPath 'id'   — indexes: by_date (date), by_timestamp (timestamp)
+//   water_logs keyPath 'date' — one record per day: { date, glasses }
+let fuelDB;
+
+export function openFuelDB() {
+  return new Promise((resolve, reject) => {
+    if (fuelDB) return resolve(fuelDB);
+    const req = indexedDB.open(FUEL_DB_NAME, FUEL_DB_VERSION);
+
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('fuel_logs')) {
+        const store = d.createObjectStore('fuel_logs', { keyPath: 'id' });
+        store.createIndex('by_date', 'date');
+        store.createIndex('by_timestamp', 'timestamp');
+      }
+      if (!d.objectStoreNames.contains('water_logs')) {
+        d.createObjectStore('water_logs', { keyPath: 'date' });
+      }
+    };
+
+    req.onsuccess = e => { fuelDB = e.target.result; resolve(fuelDB); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function fuelAll(store) {
+  return openFuelDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(store).objectStore(store).getAll();
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+function fuelPut(store, value) {
+  return openFuelDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).put(value);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+function fuelDel(store, key) {
+  return openFuelDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).delete(key);
+    req.onsuccess = () => res();
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+export async function getFuelLogs() {
+  return (await fuelAll('fuel_logs')).map(normalizeFuelLog);
+}
+
+export async function getFuelLogsForDate(date) {
+  const logs = await getFuelLogs();
+  return logs.filter(l => l.date === date);
+}
+
+export async function addFuelLog(payload) {
+  const record = normalizeFuelLog(payload);
+  const { ok, error } = validateFuelLog(record);
+  if (!ok) throw new Error(error);
+  return fuelPut('fuel_logs', record);
+}
+
+export const deleteFuelLog = id => fuelDel('fuel_logs', id);
+
+export async function getWaterLog(date) {
+  const db = await openFuelDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction('water_logs').objectStore('water_logs').get(date);
+    req.onsuccess = e => res(e.target.result ? normalizeWaterLog(e.target.result) : { date, glasses: 0 });
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+export async function setWaterGlasses(date, glasses) {
+  return fuelPut('water_logs', normalizeWaterLog({ date, glasses }));
+}
+
+export async function adjustWater(date, delta) {
+  const current = await getWaterLog(date);
+  const next = Math.max(0, current.glasses + delta);
+  await setWaterGlasses(date, next);
+  return next;
+}
+
+export async function getWaterLogs() {
+  return (await fuelAll('water_logs')).map(normalizeWaterLog);
+}
+
+// Used by backup replace: wipe the Fuel database (our DB — free to clear).
+export async function clearFuelDB() {
+  const db = await openFuelDB();
+  return Promise.all(['fuel_logs', 'water_logs'].map(store =>
+    new Promise((res, rej) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).clear();
+      req.onsuccess = () => res();
+      req.onerror = e => rej(e.target.error);
+    })
+  ));
 }

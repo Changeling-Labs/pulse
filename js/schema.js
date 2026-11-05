@@ -1,3 +1,6 @@
+// Pulse — schema for sets, exercises and fuel logs.
+import { localDateStr } from './dates.js';
+
 // ── Set schema ─────────────────────────────────────────────
 //
 // A logged "set" is a record whose meaningful metric fields are picked
@@ -43,7 +46,87 @@ export function normalizeExercise(exercise = {}) {
   return { ...exercise, metric: metrics[0], metrics };
 }
 
+// ── Fuel schema (Pulse Fuel) ───────────────────────────────
+//
+// A fuelLog records one hand-logged eating moment — deliberately not a
+// 100k-item barcode database. Hand portions are the primary unit; macros
+// are *estimates* derived from portions (see js/fuel.js). Water is tracked
+// per day in a separate `water_logs` record ({ date, glasses }).
+//
+// Fuel logs live in their OWN database (`pulse-fuel`, see js/db.js) — the
+// shared `iron-log` store stays at DB_VERSION 3 so the live Iron Log app
+// keeps booting.
+const FUEL_LOG_KEYS = ['palms', 'fists', 'cupped', 'thumbs'];
+
+function intOr(value, def) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return def;
+  return Math.floor(n);
+}
+
+function boolOr(value, def) {
+  return typeof value === 'boolean' ? value : def;
+}
+
+export function normalizeHandPortions(p = {}) {
+  const out = {};
+  for (const key of FUEL_LOG_KEYS) out[key] = intOr(p?.[key], 0);
+  return out;
+}
+
+export function normalizeFuelLog(raw = {}) {
+  const log = { ...raw };
+
+  log.id = typeof log.id === 'string' && log.id.trim() ? log.id : crypto.randomUUID();
+
+  const ts = new Date(log.timestamp);
+  const tsValid = !Number.isNaN(ts.getTime());
+  log.timestamp = tsValid ? ts.toISOString() : new Date().toISOString();
+  // date defaults to the local day of the timestamp (never UTC)
+  const dateCandidate = typeof log.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(log.date)
+    ? log.date
+    : localDateStr(tsValid ? ts : new Date());
+  log.date = dateCandidate;
+
+  log.proteinGrams = Number.isFinite(Number(log.proteinGrams)) && Number(log.proteinGrams) >= 0
+    ? Number(log.proteinGrams) : 0;
+  log.calories = Number.isFinite(Number(log.calories)) && Number(log.calories) >= 0
+    ? Math.round(Number(log.calories)) : 0;
+  log.isWholeFood = boolOr(log.isWholeFood, true);
+  log.handPortions = normalizeHandPortions(log.handPortions);
+  log.notes = typeof log.notes === 'string' ? log.notes : '';
+
+  return log;
+}
+
+export function validateFuelLog(log = {}) {
+  if (typeof log.id !== 'string' || !log.id.trim()) return { ok: false, error: 'Missing id.' };
+  if (Number.isNaN(new Date(log.timestamp).getTime())) return { ok: false, error: 'Missing or invalid timestamp.' };
+  if (typeof log.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(log.date)) return { ok: false, error: 'Missing or invalid date (YYYY-MM-DD).' };
+  if (!Number.isFinite(log.proteinGrams) || log.proteinGrams < 0 || log.proteinGrams > 1000) {
+    return { ok: false, error: 'Protein grams must be between 0 and 1000.' };
+  }
+  if (!Number.isFinite(log.calories) || log.calories < 0 || log.calories > 10000) {
+    return { ok: false, error: 'Calories must be between 0 and 10000.' };
+  }
+  if (typeof log.isWholeFood !== 'boolean') return { ok: false, error: 'isWholeFood must be a boolean.' };
+  const portions = log.handPortions || {};
+  for (const key of FUEL_LOG_KEYS) {
+    const n = Number(portions[key]);
+    if (!Number.isInteger(n) || n < 0 || n > 50) return { ok: false, error: `handPortions.${key} must be a whole number between 0 and 50.` };
+  }
+  return { ok: true };
+}
+
+export function normalizeWaterLog(raw = {}) {
+  const out = { ...raw };
+  const date = typeof out.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(out.date) ? out.date : localDateStr();
+  return { date, glasses: intOr(out.glasses, 0) };
+}
+
 // Bump when the *backup file* shape changes. See migrateBackup().
+// v4 = exercises carry `metrics[]` AND backups carry fuelLogs/waterLogs.
+// Older exports (≤v2.1.0) import fine: fuel arrays default to [].
 export const BACKUP_VERSION = 4;
 
 // Fill in defaults so every consumer can assume a uniform shape.
@@ -114,7 +197,11 @@ export function migrateBackup(data) {
   // v3 → v4: exercises gained `metrics` (non-empty list). v3 files carry a
   // singular `metric`; normalizeExercise() derives the list from it, and a
   // composite v4 set validates against every declared metric (see db.js).
+  //   v4 also added fuel data: `fuelLogs` (hand-logged entries) and
+  //   `waterLogs` (glasses/day). Files that predate Fuel ship neither.
   const exercises = data.exercises.map(normalizeExercise);
+  const fuelLogs = Array.isArray(data.fuelLogs) ? data.fuelLogs.map(normalizeFuelLog) : [];
+  const waterLogs = Array.isArray(data.waterLogs) ? data.waterLogs.map(normalizeWaterLog) : [];
 
-  return { ...data, version: BACKUP_VERSION, exercises, sets };
+  return { ...data, version: BACKUP_VERSION, exercises, sets, fuelLogs, waterLogs };
 }

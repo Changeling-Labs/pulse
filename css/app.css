@@ -848,3 +848,42 @@ body.rest-active #content { padding-bottom: 104px; }
 .hidden { display: none !important; }
 .accent { color: var(--accent); }
 .muted { color: var(--text-2); font-size: 13px; }
+
+/* ── Pulse Fuel ─────────────────────────────────────── */
+.meter-block { margin: 16px 0; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+.meter-head b { color: var(--text); font-weight: 600; }
+.meter { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.meter-fill { height: 100%; background: var(--accent); border-radius: 4px; width: 0%; transition: width 0.3s; }
+.meter-fill.green { background: var(--green); }
+
+.water-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.water-btns { display: flex; align-items: center; gap: 8px; }
+.water-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-md); background: none; color: var(--text-2); font-size: 17px; cursor: pointer; }
+.water-btn:active { border-color: var(--accent); color: var(--accent); }
+
+.portion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.portion-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.portion-emoji { font-size: 34px; line-height: 1.2; }
+.portion-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.portion-sub { font-size: 9px; color: var(--text-3); text-align: center; }
+.portion-stepper { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+.portion-stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-md); background: none; color: var(--accent); font-size: 19px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.portion-stepper button:active { border-color: var(--accent); }
+.portion-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; min-width: 26px; text-align: center; }
+
+.fuel-estimate { text-align: center; font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text-2); margin-top: 12px; }
+.fuel-estimate b { color: var(--accent); }
+
+.myth-card { background: linear-gradient(165deg, rgba(214,69,75,0.14), var(--surface) 50%); border: 1px solid rgba(214,69,75,0.35); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
+.myth-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent); border: 1px solid rgba(214,69,75,0.5); border-radius: 4px; padding: 3px 8px; margin-bottom: 10px; text-transform: uppercase; }
+.myth-text { font-family: var(--font-display); font-size: 17px; font-weight: 600; line-height: 1.35; margin-bottom: 8px; }
+.myth-truth, .myth-action { font-size: 12px; color: var(--text-2); line-height: 1.55; }
+.myth-action { margin-top: 6px; color: var(--text); }
+.myth-card .btn { margin-top: 10px; padding: 2px 0; font-size: 12px; }
+
+.fuel-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.fuel-row:last-child { border-bottom: none; }
+.fuel-name { font-weight: 600; font-size: 13px; }
+.fuel-detail { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.fuel-check { color: var(--green); font-size: 11px; margin-left: 6px; }
