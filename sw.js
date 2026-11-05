@@ -1,9 +1,19 @@
-const CACHE = 'pulse-v3';
+const CACHE = 'pulse-v4';
 const ASSETS = [
   './',
   './index.html',
   './css/app.css',
   './js/app.js',
+  './js/kernel/helpers.js',
+  './js/kernel/shell.js',
+  './js/modules/move/shared.js',
+  './js/modules/move/log.js',
+  './js/modules/move/modal.js',
+  './js/modules/move/timer.js',
+  './js/modules/move/prs.js',
+  './js/modules/move/planner.js',
+  './js/modules/fuel/fuel.js',
+  './js/modules/settings.js',
   './js/pr.js',
   './js/fuel.js',
   './js/db.js',
