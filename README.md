@@ -76,9 +76,9 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: `calcHandPortions()` (25g protein/palm, 15g carb/cupped, 10g fat/thumb), 10 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
 - [x] **UI & Tab Integration** — Fuel tab with hand-portion estimator modal, protein/quality/hydration meters, daily myth card, `pulse-fuel` persistence.
 
-### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 📅
+### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 🚧
 
-- [ ] **Step 3.1: Kernel Extraction** — Refactor `app.js` into a lightweight shell (`js/kernel/shell.js`); move movement logic to `js/modules/move/`, nutrition logic to `js/modules/fuel/`.
+- [x] **Step 3.1: Kernel Extraction (v2.3.0)** — `app.js` is now a 13-line entry; kernel owns state/routing/boot (`js/kernel/shell.js`), shared helpers (`js/kernel/helpers.js`); Move lives in `js/modules/move/`, Fuel in `js/modules/fuel/`, Settings in `js/modules/settings.js`. No build step, zero behavior change.
 - [ ] **Step 3.2: Local-First Supabase Sync Engine** — Optional Supabase Auth; a local-first `sync_queue` in IndexedDB pushing row-level JSON deltas when online, queuing offline.
 
 ### Phase 4: Pulse RECOVER — Mobility & Rest Protocols (Q2 2027) 📅
@@ -109,7 +109,15 @@ pulse/
   sw.js             # Service worker (offline support)
   css/app.css       # All styles
   js/
-    app.js          # Main app logic
+    app.js          # 13-line entry — imports modules, calls kernel boot()
+    kernel/
+      shell.js      # State, tab registry (registerTab/registerInit), routing, boot
+      helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
+    modules/
+      move/         # log.js, modal.js (log modal + circuits), timer.js (rest bar),
+                    # prs.js, planner.js, shared.js (exercise helpers)
+      fuel/         # fuel.js — Fuel tab + portion modal
+      settings.js   # Settings tab
     db.js           # IndexedDB layer (shared `iron-log` store + `pulse-fuel` DB)
     schema.js       # Set/exercise/fuel schema, validation, backup migration
     circuits.js     # Circuit grouping (supersets)
@@ -218,6 +226,7 @@ npm test
 2. **Strict offline-first.** Never add mandatory external API calls to the core logging workflows. All core state writes to IndexedDB first.
 3. **Keep it vanilla.** No heavy frameworks (React/Vue/Angular) or complex bundlers unless explicitly mandated by a phase specification.
 4. **Respect the shared database.** Never bump `DB_VERSION` for the `iron-log` store, and never add new stores to it — new domains get their own `pulse-*` database.
+5. **Respect the kernel boundaries.** Modules register tabs via `registerTab()` in `js/kernel/shell.js` and must not reach into each other's internals — import from `kernel/helpers.js` or a module's public exports only. The FAB is contextual via `fabLabel`/`fabAction`; hide/show it through the tab definition, never by DOM hacks in a module.
 
 ## 📄 License
 
