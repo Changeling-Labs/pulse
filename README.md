@@ -4,6 +4,8 @@
 
 **Pulse** is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. The movement engine shipped as Iron Log v1.8.2; Pulse extends it into a general health app: **Pulse Move** (strength, circuits, intervals), **Pulse Fuel** (nutrition) and **Pulse Recover** (mobility, sleep, rest).
 
+**Live:** https://changelinglabs.com/pulse/ (served from this repo via GitHub Pages; formerly `edmundashdown.github.io/pulse/`).
+
 ## 🎯 The Mission: Why Pulse Exists
 
 Modern cardiovascular disease, metabolic dysfunction, and physical decline are the primary drivers of preventable human suffering. The world does not need another subscription-based wellness app designed to capture user data or force monetization. **Pulse is a free, open-source, offline-first health engine built to extend healthspan and save lives.**
@@ -164,6 +166,8 @@ An exercise can declare several metrics at once — e.g. a **Rowing** exercise w
 Water is one row per day in `water_logs` (`{ date, glasses }`). Hydration is deliberately not a fuel entry.
 
 > **Shared database with Iron Log.** Pulse keeps the IndexedDB name `iron-log` for Move data, so existing Iron Log clients keep their history. Iron Log opens that store at `DB_VERSION = 3`, so **Pulse must never bump `DB_VERSION`** — Move record changes are additive and lazy-stamped at boot (`migrateExerciseMetrics` in `js/db.js`). Fuel data needs new stores, so it lives in the separate `pulse-fuel` database. If a shared-store upgrade is ever unavoidable, Iron Log upgrades first.
+>
+> **Origin matters.** `edmundashdown.github.io` and `changelinglabs.com` serve this app from two different origins, and browser storage is origin-scoped: history logged on one never appears on the other. Pick one and stay on it; `Export` → `Import` moves your data across origins.
 
 ### Circuits (supersets)
 
@@ -179,7 +183,7 @@ The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms /
 
 ### Backup compatibility
 
-`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data for edmundashdown.github.io wipes both apps' Move history** — export first.
+`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes both apps' Move history on whichever origin you're on** — export first.
 
 ## Testing
 
