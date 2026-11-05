@@ -3,6 +3,15 @@ import { normalizeSet, normalizeExercise, validateSet } from './schema.js';
 // Pulse is the continuation of Iron Log. The IndexedDB name stays 'iron-log'
 // on purpose: same github.io origin, same database — installed clients keep
 // their full history after the rebrand. Do not rename without a migration.
+//
+// Shared-DB constraint: Iron Log (the gym-tracker build, still live) reads
+// and writes this same store, and it opens with DB_VERSION = 3. Opening a
+// v3 database from a higher-version app is fine, but the reverse is not:
+// if Pulse bumps DB_VERSION to 4, Iron Log's open('iron-log', 3) would
+// throw VersionError and the live gym app would stop booting. Record-shape
+// changes therefore have to be additive and lazy in Pulse: new fields are
+// written when convenient (see migrateExerciseMetrics), and old readers
+// must keep working (the normalize* helpers do exactly that).
 const DB_NAME = 'iron-log';
 const DB_VERSION = 3;
 
@@ -110,15 +119,27 @@ export async function getExercises() {
   return (await all('exercises')).map(normalizeExercise);
 }
 
-export const addExercise = (name, metric = 'strength') =>
-  put('exercises', normalizeExercise({ name, metric }));
+// v4 stamp: exercises gained a `metrics` list (derived from the legacy
+// singular `metric` by normalizeExercise). Runs once at boot and rewrites
+// only the records that still lack the list. Deliberately NOT a DB version
+// bump — Iron Log shares this store (see the note at the top of this file).
+export async function migrateExerciseMetrics() {
+  const raw = await all('exercises');
+  for (const ex of raw) {
+    if (Array.isArray(ex.metrics) && ex.metrics.length > 0) continue;
+    await put('exercises', normalizeExercise(ex));
+  }
+}
+
+export const addExercise = (name, metrics = ['strength']) =>
+  put('exercises', normalizeExercise({ name, metrics }));
 
 export const deleteExercise = id => del('exercises', id);
 
-export async function updateExerciseMetric(id, metric) {
+export async function updateExerciseMetrics(id, metrics) {
   const exercise = await get('exercises', id);
   if (!exercise) return null;
-  return put('exercises', normalizeExercise({ ...exercise, metric }));
+  return put('exercises', normalizeExercise({ ...exercise, metrics }));
 }
 
 // ── Sets ───────────────────────────────────────────────────
@@ -129,10 +150,21 @@ export async function getSets() {
   return (await all('sets')).map(normalizeSet);
 }
 
+// The metrics an exercise declares, cached per call site. Needed to validate
+// composite sets — a rower's set must carry BOTH distance and duration.
+async function metricsFor(exerciseId, cache) {
+  if (cache.has(exerciseId)) return cache.get(exerciseId);
+  const exercise = await get('exercises', exerciseId);
+  const metrics = exercise ? normalizeExercise(exercise).metrics : null;
+  cache.set(exerciseId, metrics);
+  return metrics;
+}
+
 export async function addSet(payload) {
   // weight is always stored in lbs
   const record = normalizeSet(payload);
-  const { ok, error } = validateSet(record);
+  const metrics = await metricsFor(record.exerciseId, new Map());
+  const { ok, error } = validateSet(record, metrics);
   if (!ok) throw new Error(error);
   return put('sets', record);
 }
@@ -142,8 +174,10 @@ export async function addSet(payload) {
 // not at all.
 export async function addSets(payloads) {
   const records = payloads.map(normalizeSet);
+  const cache = new Map();   // one exercise read per exerciseId, not per record
   for (const record of records) {
-    const { ok, error } = validateSet(record);
+    const metrics = await metricsFor(record.exerciseId, cache);
+    const { ok, error } = validateSet(record, metrics);
     if (!ok) throw new Error(error);
   }
 

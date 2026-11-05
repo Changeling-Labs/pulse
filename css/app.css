@@ -823,6 +823,24 @@ body.rest-active #content { padding-bottom: 104px; }
 .chip-btn:active,
 .chip-btn.active { border-color: var(--accent); color: var(--accent); }
 
+/* Exercise metric toggles (Settings → Exercises): multi-select pills */
+.metric-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+.metric-chip {
+  background: var(--surface-2);
+  border: 1px solid var(--border-md);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.metric-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
 /* ── Divider ─────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 12px 0; }
 

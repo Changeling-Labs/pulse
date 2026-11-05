@@ -1,14 +1,18 @@
 // ── Set schema ─────────────────────────────────────────────
 //
-// A logged "set" is a discriminated record: `type` selects which
-// metric fields are meaningful. Everything else in the app reads
-// through the helpers here, so a new metric type can be added in
-// one place instead of touching every call site.
+// A logged "set" is a record whose meaningful metric fields are picked
+// out by the metrics its exercise declares. Everything else in the app
+// reads through the helpers here.
 //
 //   strength   { weight (lbs), reps }
 //   timed      { duration (seconds) }
 //   distance   { distance (metres) }
 //   output     { output (generic work / rep / calorie count) }
+//
+// An exercise can declare several metrics at once (v4) — e.g. a rower
+// logs distance AND time in one effort. The set then carries every
+// declared field together, and `type` records the *primary* metric
+// (metrics[0]) for backwards compatibility with v3 readers.
 //
 // Every set also carries: exerciseId, date (YYYY-MM-DD), notes.
 //
@@ -25,15 +29,22 @@ export const METRIC_LABELS = {
   output: 'Output',
 };
 
-// An exercise declares which metric it logs, so the Log modal can show the
-// right inputs. Exercises without a metric are weight/reps lifts.
+// An exercise declares which metrics it logs, so the Log modal can show
+// the right inputs. `metrics` (v4) is a non-empty list, e.g. a rower logs
+// ['distance', 'timed']. `metric` is kept as a derived alias (metrics[0])
+// so older readers — including Iron Log, which shares this database —
+// keep working untouched. Exercises without either default to strength.
 export function normalizeExercise(exercise = {}) {
-  const metric = SET_TYPES.includes(exercise.metric) ? exercise.metric : 'strength';
-  return { ...exercise, metric };
+  const known = Array.isArray(exercise.metrics) && exercise.metrics.length
+    ? exercise.metrics
+    : [exercise.metric];
+  const metrics = [...new Set(known.filter(m => SET_TYPES.includes(m)))];
+  if (metrics.length === 0) metrics.push('strength');
+  return { ...exercise, metric: metrics[0], metrics };
 }
 
 // Bump when the *backup file* shape changes. See migrateBackup().
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
 // Fill in defaults so every consumer can assume a uniform shape.
 // `groupId`/`round` mark membership of a circuit, and `restSec` carries the
@@ -52,23 +63,29 @@ export function normalizeSet(set = {}) {
 }
 
 // Returns { ok: true } or { ok: false, error } for user-facing display.
-export function validateSet(set = {}) {
+// Pass the exercise's declared `metrics` to validate composite sets — every
+// declared metric must be present and in range. Without it, only the set's
+// `type` is validated (the v3 behaviour, still used by legacy call sites).
+export function validateSet(set = {}, metrics = null) {
   if (!Number.isFinite(set.exerciseId)) return { ok: false, error: 'Choose an exercise.' };
   if (!set.date) return { ok: false, error: 'Missing date.' };
 
-  switch (normalizeSet(set).type) {
-    case 'timed':
-      if (!Number.isFinite(set.duration) || set.duration <= 0) return { ok: false, error: 'Enter a duration.' };
-      break;
-    case 'distance':
-      if (!Number.isFinite(set.distance) || set.distance <= 0) return { ok: false, error: 'Enter a distance.' };
-      break;
-    case 'output':
-      if (!Number.isFinite(set.output) || set.output <= 0) return { ok: false, error: 'Enter an output value.' };
-      break;
-    default:
-      if (!Number.isFinite(set.weight) || set.weight < 0) return { ok: false, error: 'Enter a weight.' };
-      if (!Number.isInteger(set.reps) || set.reps < 1) return { ok: false, error: 'Enter a rep count.' };
+  const required = Array.isArray(metrics) && metrics.length ? metrics : [normalizeSet(set).type];
+  for (const metric of required) {
+    switch (metric) {
+      case 'timed':
+        if (!Number.isFinite(set.duration) || set.duration <= 0) return { ok: false, error: 'Enter a duration.' };
+        break;
+      case 'distance':
+        if (!Number.isFinite(set.distance) || set.distance <= 0) return { ok: false, error: 'Enter a distance.' };
+        break;
+      case 'output':
+        if (!Number.isFinite(set.output) || set.output <= 0) return { ok: false, error: 'Enter an output value.' };
+        break;
+      default:
+        if (!Number.isFinite(set.weight) || set.weight < 0) return { ok: false, error: 'Enter a weight.' };
+        if (!Number.isInteger(set.reps) || set.reps < 1) return { ok: false, error: 'Enter a rep count.' };
+    }
   }
   return { ok: true };
 }
@@ -94,6 +111,9 @@ export function migrateBackup(data) {
   const sets = data.sets.map(normalizeSet);
 
   // v2 → v3: exercises gained a `metric`. Defaults to 'strength'.
+  // v3 → v4: exercises gained `metrics` (non-empty list). v3 files carry a
+  // singular `metric`; normalizeExercise() derives the list from it, and a
+  // composite v4 set validates against every declared metric (see db.js).
   const exercises = data.exercises.map(normalizeExercise);
 
   return { ...data, version: BACKUP_VERSION, exercises, sets };

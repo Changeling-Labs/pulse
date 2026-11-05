@@ -108,7 +108,7 @@ async function applyBackup(data, mode) {
         idMap[ex.id] = match.id;
       } else {
         // Insert as new, get auto-incremented ID
-        const newId = await addRecord(db, 'exercises', normalizeExercise({ name: ex.name, metric: ex.metric }));
+        const newId = await addRecord(db, 'exercises', normalizeExercise({ name: ex.name, metric: ex.metric, metrics: ex.metrics }));
         idMap[ex.id] = newId;
         existingNames.add(ex.name.toLowerCase());
       }

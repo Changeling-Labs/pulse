@@ -68,7 +68,7 @@ Pulse is built as a **Local-First Micro-Kernel**. The client-side database (Inde
 ### Phase 2: Refactor & Cloud Sync Engine (Q1 2027) 🚧
 
 - [ ] **Kernel Extraction:** Refactor monolithic `app.js` into modular domain drivers (`/kernel`, `/modules/move`).
-- [ ] **Dynamic Metric & PR Engine:** Expand exercises to carry multiple concurrent metrics (e.g., time + distance for rowing) with volume/time-based PR analytics.
+- [x] **Dynamic Metric & PR Engine:** Exercises carry multiple concurrent metrics (v2.1.0) — e.g., time + distance for a rower — with per-metric bests (volume for strength, lowest time, longest distance, best output) in the PRs tab.
 - [ ] **Cloud Sync Engine:** Implement optional, zero-cost cloud sync using Supabase Auth + local-first delta backups.
 
 ### Phase 3: Pulse Recover — Mobility & Rest Protocols (Q2 2027) 📅
@@ -102,6 +102,7 @@ pulse/
     schema.js       # Set schema, validation, backup migration
     circuits.js     # Circuit grouping (supersets)
     timer.js        # Rest countdown model
+    pr.js           # Dynamic PR engine (bests per metric)
     dates.js        # Local calendar-day helpers
     calc.js         # Plate calculator + session plan
     confetti.js     # Set completion celebration
@@ -132,24 +133,37 @@ Bump `js/version.js` with each release. Shows in Settings tab.
 
 ## Data model
 
-A logged set is a discriminated record — `type` decides which metric
-fields are meaningful (see `js/schema.js`):
+A logged set carries the fields for **every metric its exercise declares**
+(see `js/schema.js`). `type` records the *primary* metric (the first one
+declared) for backwards compatibility:
 
-| `type`     | Metric fields          | Example          |
+| Metric     | Fields                 | Example          |
 |------------|------------------------|------------------|
 | `strength` | `weight` (lbs), `reps` | 5 × 225 lbs      |
 | `timed`    | `duration` (seconds)   | 1:30             |
 | `distance` | `distance` (metres)    | 5 km             |
 | `output`   | `output` (count)       | 30 calories      |
 
+An exercise can declare several metrics at once — e.g. a **Rowing** exercise
+with `metrics: ["distance", "timed"]` logs `distance: 2000, duration: 420` in
+**one** record. The Log modal renders every declared metric's inputs, and
+validation requires all of them.
+
 Every set also stores `exerciseId`, `date` (`YYYY-MM-DD`), `notes`, and —
 for circuit members — `groupId`, `round` and `restSec`. Records written
-before v2 have no `type` and are treated as `strength`; IndexedDB is migrated
-in place on upgrade (`DB_VERSION` in `js/db.js`).
+before v2 have no `type` and are treated as `strength`.
 
-Each exercise declares which metric it logs (Settings → Exercises), and the
-Log modal renders the matching inputs. Exercises predating v3 default to
-`strength`, and the Planner and PRs tabs only offer weight/reps lifts.
+Each exercise declares its metric list in Settings → Exercises (toggle pills;
+at least one required). The Log modal renders the matching inputs, and the
+Planner offers weight/reps lifts only.
+
+> **Shared database with Iron Log (v2.0.0+).** Pulse deliberately keeps the
+> IndexedDB name `iron-log`, so existing Iron Log installs keep their history.
+> Iron Log opens the same store at `DB_VERSION = 3`, so **Pulse must never
+> bump `DB_VERSION`** — shape changes are additive and lazy. Exercise
+> `metrics` are stamped at boot (`migrateExerciseMetrics` in `js/db.js`);
+> nothing else was touched. If a future Pulse release ever needs a DB
+> upgrade, Iron Log needs one first.
 
 > **Iron Log → Pulse data continuity.** Pulse deliberately keeps the
 > IndexedDB database name `iron-log`. Both apps are served from the same
@@ -193,10 +207,10 @@ short distances (under 0.1 mi / 1 km) staying in metres. Distance is still
 
 ### Backup compatibility
 
-`js/backup.js` writes `version: 3` (`BACKUP_VERSION`). On import, older
+`js/backup.js` writes `version: 4` (`BACKUP_VERSION`). On import, older
 files are migrated up to the current version; files from a newer app
 version are rejected rather than silently misread. Iron Log exports
-(`iron-log-backup-*.json`) import cleanly into Pulse — same format.
+(`iron-log-backup-*.json`, v3) migrate cleanly into Pulse.
 
 ## Testing
 

@@ -1,5 +1,6 @@
-import { openDB, seedIfEmpty, getExercises, getSets, addSet, addSets, deleteSet, deleteSetsByGroup, getAllPRs, getPref, setPref, getEquipment, getLastSetForExercise, updateExerciseMetric } from './db.js';
+import { openDB, seedIfEmpty, getExercises, getSets, addSet, addSets, deleteSet, deleteSetsByGroup, getAllPRs, getPref, setPref, getEquipment, getLastSetForExercise, updateExerciseMetrics, migrateExerciseMetrics } from './db.js';
 import { calcPlates, targetFromPct, displayWeight, displayDistance, buildSessionPlan, toKg, toLbs, weightStep } from './calc.js';
+import { metricPR } from './pr.js';
 import { burstFromEl } from './confetti.js';
 import { exportBackup, importBackup } from './backup.js';
 import { VERSION, BUILD_DATE } from './version.js';
@@ -37,6 +38,7 @@ let state = {
 // ── Boot ───────────────────────────────────────────────────
 async function boot() {
   await openDB();
+  await migrateExerciseMetrics();   // no-op on fresh DBs
   await seedIfEmpty();
   state.exercises = await getExercises();
   state.equipment = await getEquipment();
@@ -96,8 +98,8 @@ function fmtDate(isoStr) {
 }
 
 // ── Set display helpers ────────────────────────────────────
-// A set's shape depends on its `type` (see js/schema.js), so rendering
-// reads through these instead of assuming weight/reps.
+// A set may carry fields for several metrics at once (schema v4), so
+// rendering reads whatever is on the record instead of switching on type.
 function fmtDuration(sec) {
   const total = Math.round(sec);
   const m = Math.floor(total / 60);
@@ -106,16 +108,22 @@ function fmtDuration(sec) {
 }
 
 function setDetail(s) {
-  switch (s.type) {
-    case 'timed':    return fmtDuration(s.duration);
-    case 'distance': return displayDistance(s.distance, state.unit);
-    case 'output':   return `${s.output} output`;
-    default:         return `${s.reps} rep${s.reps !== 1 ? 's' : ''}`;
-  }
+  const parts = [];
+  if (Number.isFinite(s.reps)) parts.push(`${s.reps} rep${s.reps !== 1 ? 's' : ''}`);
+  if (Number.isFinite(s.duration)) parts.push(fmtDuration(s.duration));
+  if (Number.isFinite(s.distance)) parts.push(displayDistance(s.distance, state.unit));
+  if (Number.isFinite(s.output)) parts.push(`${s.output} output`);
+  return parts.join(' · ') || '—';
 }
 
+// The right-aligned "headline" for a set row: weight for lifts, otherwise
+// the first non-strength metric the record carries.
 function setPrimary(s) {
-  return s.type === 'strength' ? dw(s.weight) : '';
+  if (Number.isFinite(s.weight)) return dw(s.weight);
+  if (Number.isFinite(s.distance)) return displayDistance(s.distance, state.unit);
+  if (Number.isFinite(s.duration)) return fmtDuration(s.duration);
+  if (Number.isFinite(s.output)) return String(s.output);
+  return '';
 }
 
 // ── Log Tab ────────────────────────────────────────────────
@@ -126,9 +134,9 @@ async function renderLog(el) {
 
   let prCount = 0;
   for (const s of todaySets) {
-    if (s.type !== 'strength') continue;   // only weight/reps sets set PRs
+    if (!Number.isFinite(s.weight) || !Number.isFinite(s.reps)) continue;   // weight PRs only
     const prs = await getAllPRs(s.exerciseId, sinceDate());
-    if (s.weight != null && prs[s.reps] === s.weight) prCount++;
+    if (prs[s.reps] === s.weight) prCount++;
   }
 
   const exMap = Object.fromEntries(state.exercises.map(e => [e.id, e.name]));
@@ -519,14 +527,14 @@ window.refreshModalCalc = function() {
   });
 };
 
-function metricForExercise(exerciseId) {
+function metricsForExercise(exerciseId) {
   const exercise = state.exercises.find(e => e.id === exerciseId);
-  return exercise?.metric || 'strength';
+  return exercise?.metrics || ['strength'];
 }
 
 // The Planner is built on percentage-of-1RM, so it only offers lifts.
 function strengthExercises() {
-  return state.exercises.filter(e => e.metric === 'strength');
+  return state.exercises.filter(e => (e.metrics || ['strength']).includes('strength'));
 }
 
 function clearScopeFields(scope) {
@@ -536,8 +544,10 @@ function clearScopeFields(scope) {
   }
 }
 
-// Prefill "same as last time" for one exercise, in its own metric.
-async function prefillFromLastSet(exerciseId, metric, scope = 'f-', clearNotes = true) {
+// Prefill "same as last time": one pass over the latest set for the
+// exercise, filling every field it carries (composite-aware — a rower's
+// last set prefills both distance and time).
+async function prefillFromLastSet(exerciseId, metrics, scope = 'f-', clearNotes = true) {
   if (clearNotes) document.getElementById('modal-notes').value = '';
   clearScopeFields(scope);
 
@@ -546,27 +556,30 @@ async function prefillFromLastSet(exerciseId, metric, scope = 'f-', clearNotes =
     if (el && value != null) el.value = value;
   };
 
-  const last = exerciseId ? await getLastSetForExercise(exerciseId, metric) : null;
+  const last = exerciseId ? await getLastSetForExercise(exerciseId) : null;
 
   if (last) {
-    if (metric === 'strength') {
-      set('weight', state.unit === 'kg' ? toKg(last.weight) : last.weight);
-      set('reps', last.reps);
-    } else if (metric === 'timed') set('duration', last.duration);
-    else if (metric === 'distance') set('distance', last.distance);
-    else set('output', last.output);
-  } else if (metric === 'strength') {
+    if (Number.isFinite(last.weight)) set('weight', state.unit === 'kg' ? toKg(last.weight) : last.weight);
+    if (Number.isFinite(last.reps)) set('reps', last.reps);
+    if (Number.isFinite(last.duration)) set('duration', last.duration);
+    if (Number.isFinite(last.distance)) set('distance', last.distance);
+    if (Number.isFinite(last.output)) set('output', last.output);
+  } else if (metrics.includes('strength')) {
     set('reps', 5);
   }
   refreshModalCalc();
 }
 
+function metricListLabel(metrics) {
+  return metrics.map(m => METRIC_LABELS[m]).join(' + ');
+}
+
 // ── Single-set mode ────────────────────────────────────────
 function renderModalForExercise(exerciseId) {
-  const metric = metricForExercise(exerciseId);
-  document.getElementById('modal-title').textContent = `Log · ${METRIC_LABELS[metric]}`;
-  document.getElementById('modal-metrics').innerHTML = metricFieldsHtml('f-', metric);
-  prefillFromLastSet(exerciseId, metric, 'f-');
+  const metrics = metricsForExercise(exerciseId);
+  document.getElementById('modal-title').textContent = `Log · ${metricListLabel(metrics)}`;
+  document.getElementById('modal-metrics').innerHTML = metrics.map(m => metricFieldsHtml('f-', m)).join('');
+  prefillFromLastSet(exerciseId, metrics, 'f-');
 }
 
 // ── Circuit mode ───────────────────────────────────────────
@@ -574,7 +587,7 @@ function renderModalForExercise(exerciseId) {
 // whole thing is logged in one go. Every set gets the same `groupId` and a
 // 1-based `round`, which is what the Log tab groups on (see circuits.js).
 let logMode = 'single';
-let circuitItems = [];      // [{ exerciseId, metric }]
+let circuitItems = [];      // [{ exerciseId, metrics }]
 let circuitRounds = 3;
 let circuitRestSec = -1;    // -1 = follow the global rest setting
 
@@ -644,7 +657,7 @@ function renderCircuit(snap = snapshotCircuitValues()) {
               <span class="circuit-item-name">${i + 1}. ${exercise ? exercise.name : '?'}</span>
               <button type="button" class="btn btn-ghost circuit-remove" onclick="removeCircuitItem(${i})" aria-label="Remove exercise">✕</button>
             </div>
-            ${metricFieldsHtml(circuitScope(i), item.metric)}
+            ${item.metrics.map(m => metricFieldsHtml(circuitScope(i), m)).join('')}
           </div>`;
       }).join('');
 
@@ -656,9 +669,9 @@ window.addCircuitItem = function(value) {
   const id = parseInt(value, 10);
   if (!id || circuitItems.some(i => i.exerciseId === id)) return;
   const snap = snapshotCircuitValues();
-  circuitItems.push({ exerciseId: id, metric: metricForExercise(id) });
+  circuitItems.push({ exerciseId: id, metrics: metricsForExercise(id) });
   renderCircuit(snap);
-  prefillFromLastSet(id, metricForExercise(id), circuitScope(circuitItems.length - 1), false);
+  prefillFromLastSet(id, metricsForExercise(id), circuitScope(circuitItems.length - 1), false);
 };
 
 window.removeCircuitItem = function(index) {
@@ -705,13 +718,13 @@ window.setLogMode = function(mode) {
     const snap = snapshotCircuitValues();
     if (circuitItems.length === 0) {
       const exId = parseInt(document.getElementById('modal-exercise').value, 10);
-      if (exId) circuitItems.push({ exerciseId: exId, metric: metricForExercise(exId) });
+      if (exId) circuitItems.push({ exerciseId: exId, metrics: metricsForExercise(exId) });
     }
     document.getElementById('modal-title').textContent = 'Log · Circuit';
     renderCircuit(snap);
   } else {
     const exId = parseInt(document.getElementById('modal-exercise').value, 10);
-    document.getElementById('modal-title').textContent = `Log · ${METRIC_LABELS[metricForExercise(exId)]}`;
+    document.getElementById('modal-title').textContent = `Log · ${metricListLabel(metricsForExercise(exId))}`;
   }
 };
 
@@ -733,24 +746,33 @@ window.onLogExerciseChange = function(val) {
   renderModalForExercise(parseInt(val, 10));
 };
 
-// Build one set payload from a scoped form. Returns { error } when a
-// required value is missing, so callers can report it before writing.
-function buildSetPayload(exerciseId, metric, scope, base) {
-  const payload = { exerciseId, type: metric, ...base };
+// Build one composite payload from a scoped form. Every metric the exercise
+// declares must be present — returns { error } naming what's missing.
+function buildSetPayload(exerciseId, metrics, scope, base) {
+  const payload = { exerciseId, type: metrics[0], ...base };
   const name = state.exercises.find(e => e.id === exerciseId)?.name || 'every exercise';
 
-  if (metric === 'strength') {
-    const weight = fieldValue(scope, 'weight');
-    if (weight === null) return { error: `Enter a weight for ${name}.` };
-    payload.weight = Math.round((state.unit === 'kg' ? toLbs(weight) : weight) * 10) / 10;
-    const reps = fieldValue(scope, 'reps');
-    payload.reps = reps === null ? undefined : Math.round(reps);
-  } else if (metric === 'timed') {
-    payload.duration = fieldValue(scope, 'duration') ?? undefined;
-  } else if (metric === 'distance') {
-    payload.distance = fieldValue(scope, 'distance') ?? undefined;
-  } else {
-    payload.output = fieldValue(scope, 'output') ?? undefined;
+  for (const metric of metrics) {
+    if (metric === 'strength') {
+      const weight = fieldValue(scope, 'weight');
+      if (weight === null) return { error: `Enter a weight for ${name}.` };
+      payload.weight = Math.round((state.unit === 'kg' ? toLbs(weight) : weight) * 10) / 10;
+      const reps = fieldValue(scope, 'reps');
+      if (reps === null) return { error: `Enter a rep count for ${name}.` };
+      payload.reps = Math.round(reps);
+    } else if (metric === 'timed') {
+      const duration = fieldValue(scope, 'duration');
+      if (duration === null) return { error: `Enter a duration for ${name}.` };
+      payload.duration = duration;
+    } else if (metric === 'distance') {
+      const distance = fieldValue(scope, 'distance');
+      if (distance === null) return { error: `Enter a distance for ${name}.` };
+      payload.distance = distance;
+    } else {
+      const output = fieldValue(scope, 'output');
+      if (output === null) return { error: `Enter an output value for ${name}.` };
+      payload.output = output;
+    }
   }
 
   return { payload };
@@ -762,9 +784,9 @@ window.submitLog = async function() {
   const exId = parseInt(document.getElementById('modal-exercise').value, 10);
   if (!exId) { alert('Choose an exercise.'); return; }
 
-  const metric = metricForExercise(exId);
+  const metrics = metricsForExercise(exId);
   const notes = document.getElementById('modal-notes').value.trim();
-  const { payload, error } = buildSetPayload(exId, metric, 'f-', { date: todayStr(), notes });
+  const { payload, error } = buildSetPayload(exId, metrics, 'f-', { date: todayStr(), notes });
   if (error) { alert(error); return; }
 
   try {
@@ -796,7 +818,7 @@ async function submitCircuit() {
   const built = [];
   for (let round = 1; round <= rounds; round++) {
     circuitItems.forEach((item, i) => {
-      built.push(buildSetPayload(item.exerciseId, item.metric, circuitScope(i),
+      built.push(buildSetPayload(item.exerciseId, item.metrics, circuitScope(i),
         { date, notes, groupId, round, restSec: restSec > 0 ? restSec : null }));
     });
   }
@@ -818,12 +840,42 @@ async function submitCircuit() {
 }
 
 // ── PRs Tab ────────────────────────────────────────────────
+const PR_METRIC_LABEL = { timed: 'Best time', distance: 'Best distance', output: 'Best output' };
+
+function fmtMetricPR(metric, value) {
+  if (metric === 'timed') return fmtDuration(value);
+  if (metric === 'distance') return displayDistance(value, state.unit);
+  return String(value);
+}
+
 async function renderPRs(el) {
   const since = sinceDate();
   const windowLabel = { '90': 'Last 3 months', '180': 'Last 6 months', '365': 'Last year', 'all': 'All time' }[state.prWindow] || 'Last year';
-  // Only weight/reps lifts can hold weight PRs.
-  const rows = await Promise.all(strengthExercises().map(async ex => ({ ex, prs: await getAllPRs(ex.id, since) })));
-  const hasAny = rows.some(r => r.prs[1] || r.prs[3] || r.prs[5]);
+
+  // One getSets() pass, bucketed by exercise — the PR maths below reads it.
+  const allSets = await getSets();
+  const byExercise = new Map();
+  for (const s of allSets) {
+    if (!byExercise.has(s.exerciseId)) byExercise.set(s.exerciseId, []);
+    byExercise.get(s.exerciseId).push(s);
+  }
+
+  // Strength card — 1RM/3RM/5RM + best volume set — for lifts only.
+  const strengthRows = await Promise.all(strengthExercises().map(async ex => ({
+    ex,
+    prs: await getAllPRs(ex.id, since),
+    vol: metricPR(byExercise.get(ex.id) || [], 'strength', since),
+  })));
+  const hasStrength = strengthRows.some(r => r.prs[1] || r.prs[3] || r.prs[5] || r.vol);
+
+  // Metric card — best value per non-strength metric any exercise declares.
+  const metricRows = [];
+  for (const ex of state.exercises) {
+    for (const metric of (ex.metrics || []).filter(m => m !== 'strength')) {
+      const best = metricPR(byExercise.get(ex.id) || [], metric, since);
+      if (best) metricRows.push({ ex, metric, best });
+    }
+  }
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:12px">
@@ -835,9 +887,10 @@ async function renderPRs(el) {
         <option value="all" ${state.prWindow==='all'?'selected':''}>All time</option>
       </select>
     </div>
-    <div class="card">
-      <div class="card-label">${windowLabel}</div>
-      ${hasAny ? rows.map(({ ex, prs }) => `
+    ${hasStrength ? `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-label">${windowLabel} · Strength</div>
+      ${strengthRows.map(({ ex, prs, vol }) => `
         <div class="pr-row">
           <div class="pr-name">${ex.name}</div>
           <div class="pr-cells">
@@ -846,10 +899,38 @@ async function renderPRs(el) {
                 <div class="pr-cell-lbl">${r}RM</div>
                 <div class="pr-cell-val${prs[r] ? '' : ' empty'}">${prs[r] ? dw(prs[r]) : '—'}</div>
               </div>`).join('')}
+            <div class="pr-cell">
+              <div class="pr-cell-lbl">Vol</div>
+              <div class="pr-cell-val${vol ? '' : ' empty'}">${vol ? dw(vol.value) : '—'}</div>
+            </div>
           </div>
-        </div>`).join('')
-      : '<div class="empty"><p>No sets logged yet. Start lifting to see your PRs here.</p></div>'}
-    </div>`;
+        </div>`).join('')}
+    </div>` : ''}
+    ${metricRows.length ? `
+    <div class="card">
+      <div class="card-label">${windowLabel} · Metric bests</div>
+      ${metricRows.map(({ ex, metric, best }) => `
+        <div class="pr-row">
+          <div>
+            <div class="pr-name">${ex.name}</div>
+            <div class="pr-cell-lbl" style="margin-top:2px">${METRIC_LABELS[metric]}</div>
+          </div>
+          <div class="pr-cells">
+            <div class="pr-cell">
+              <div class="pr-cell-lbl">${PR_METRIC_LABEL[metric]}</div>
+              <div class="pr-cell-val">${fmtMetricPR(metric, best.value)}</div>
+            </div>
+            <div class="pr-cell">
+              <div class="pr-cell-lbl">Date</div>
+              <div class="pr-cell-val">${fmtDate(best.date)}</div>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
+    ${!hasStrength && metricRows.length === 0 ? `
+    <div class="card">
+      <div class="empty"><p>No sets logged yet. Start logging to see your PRs here.</p></div>
+    </div>` : ''}`;
 }
 
 window.setPRWindow = async function(val) {
@@ -1200,14 +1281,13 @@ async function renderSettings(el) {
     <div class="card-label" style="margin-bottom:8px">Exercises</div>
     <div class="card">
       ${state.exercises.map(e => `
-        <div class="setting-row">
-          <div>
+        <div class="setting-row" style="gap:8px">
+          <div style="flex:1">
             <div class="setting-label">${e.name}</div>
-            <div class="setting-sub">What it logs</div>
+            <div class="metric-chips">
+              ${SET_TYPES.map(m => `<button type="button" class="metric-chip${e.metrics.includes(m) ? ' active' : ''}" onclick="toggleExerciseMetric(${e.id}, '${m}')">${METRIC_LABELS[m]}</button>`).join('')}
+            </div>
           </div>
-          <select style="width:130px" onchange="setExerciseMetric(${e.id}, this.value)">
-            ${SET_TYPES.map(m => `<option value="${m}" ${e.metric === m ? 'selected' : ''}>${METRIC_LABELS[m]}</option>`).join('')}
-          </select>
           <button class="btn btn-ghost" style="color:var(--text-3);font-size:18px" onclick="deleteEx(${e.id})">✕</button>
         </div>`).join('')}
       <button class="btn btn-ghost" style="padding:4px 0;margin-top:6px" onclick="openAddExercise()">+ Add exercise</button>
@@ -1284,8 +1364,19 @@ window.addPlateType = async function() {
   await saveEquipment(state.equipment);
   renderPlateEditor();
 };
-window.setExerciseMetric = async function(id, metric) {
-  await updateExerciseMetric(id, metric);
+// Toggle one metric on/off for an exercise. At least one metric must stay
+// declared — removing the last one gets a nudge, not a broken exercise.
+window.toggleExerciseMetric = async function(id, metric) {
+  const exercise = state.exercises.find(e => e.id === id);
+  if (!exercise) return;
+  const metrics = new Set(exercise.metrics || ['strength']);
+  if (metrics.has(metric)) {
+    if (metrics.size === 1) { alert('An exercise needs at least one metric.'); return; }
+    metrics.delete(metric);
+  } else {
+    metrics.add(metric);
+  }
+  await updateExerciseMetrics(id, [...metrics]);
   state.exercises = await getExercises();
   renderTab('settings');
 };
