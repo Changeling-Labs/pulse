@@ -1,21 +1,97 @@
-# Iron Log
+# 🫀 Project Pulse
 
-A mobile-first PWA gym workout tracker. Tracks PRs, plans full workout sessions with multiple movements, percentage-based loading, and plate breakdowns.
+> **A local-first, zero-cost, open-source health engine built to combat chronic disease through lifelong physical capability, metabolic tracking, and recovery.**
 
-## Features
+**Pulse** is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. Phase 1 (the movement engine) shipped as Iron Log v1.8.2; Pulse rebrands and extends it into a general health app: **Pulse Move** (strength, circuits, intervals), **Pulse Fuel** (nutrition) and **Pulse Recover** (mobility, sleep, rest).
 
-- **Log** — Log sets (exercise, weight, reps). PRs are auto-detected and badged. Supersets and circuits log as a group with round numbers.
-- **Rest timer** — Counts down between sets, with +30s, pause and skip. Circuits carry their own between-rounds interval and can be paced round by round.
-- **PRs** — View 1RM, 3RM, 5RM per exercise with configurable date window and all-time fallback.
-- **Planner** — Build full workout sessions with multiple movements. Per-set % or flat lbs input, rep counts, live plate transition instructions.
-- **Settings** — Units (lbs/kg), bar weight, plate inventory, exercise management, rest timer, JSON backup/restore.
+## 🎯 The Mission: Why Pulse Exists
 
-All data lives in IndexedDB on your device. No account, no backend, no cost.
+Modern cardiovascular disease, metabolic dysfunction, and physical decline are the primary drivers of preventable human suffering. The world does not need another subscription-based wellness app designed to capture user data or force monetization. **Pulse is a free, open-source, offline-first health engine built to extend healthspan and save lives.**
+
+### The Global Crisis in Numbers
+
+```
+Global Annual Mortality by Primary Cause (Millions)
+┌─────────────────────────────────────────────────────────┐
+│ Cardiovascular Disease (CVD)   █████████████████ 17.9M │
+│ Cancer                         █████████ 9.6M           │
+│ Chronic Respiratory Disease    ████ 3.9M                │
+│ Diabetes & Kidney Disease      ██ 2.0M                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **80% Preventable:** Up to 80% of premature heart attacks and strokes are preventable through lifestyle modifications — specifically cardiorespiratory fitness, muscle mass retention, metabolic control, and stress management.
+- **The Fitness Defense:** Cardiorespiratory fitness (VO₂ max) and muscle strength show an inverse, linear relationship with all-cause mortality. High muscle mass and functional capacity delay arterial aging and metabolic decay by decades.
+- **The Accessibility Gap:** Most health apps lock basic tracking, habit building, and data export behind monthly subscriptions. **Pulse is permanently free, non-profit, private, and fully functional offline.**
+
+## 🎨 Branding & Aesthetic Vision
+
+- **Name:** **Pulse** (Sub-modules: *Pulse Move*, *Pulse Fuel*, *Pulse Recover*)
+- **Tagline:** _Engineered for Healthspan._
+- **Aesthetic Direction:** Industrial Minimalist. Charcoal background (`#121212`), high-contrast clinical typography, warm emergency accents (crimson/amber indicators for strain/fatigue), and zero decorative bloat.
+- **Core Ethos:** Local-first data ownership, instant response times, zero tracking scripts, no paywalls.
+
+## 🏗️ Architecture & Core Principles
+
+Pulse is built as a **Local-First Micro-Kernel**. The client-side database (IndexedDB) is the single source of truth. The user UI never waits for network requests or cloud backends to log a set, record a meal, or run a timer.
+
+```
+                      ┌─────────────────────────────────┐
+                      │          Pulse Shell            │
+                      │  (PWA, SW, Local-First DB,      │
+                      │   Theme System, Cloud Sync)     │
+                      └────────────────┬────────────────┘
+                                       │
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ▼                             ▼                             ▼
+┌───────────────────────┐    ┌───────────────────────┐    ┌───────────────────────┐
+│     Pulse MOVE        │    │      Pulse FUEL       │    │     Pulse RECOVER     │
+│  (Strength, Circuits, │    │  (Low-Friction Macros,│    │ (Guided Mobility,     │
+│   Intervals, Plates)  │    │  Hydration, Quality)  │    │  Sleep, Rest Protocols)│
+└───────────────────────┘    └───────────────────────┘    └───────────────────────┘
+```
+
+1. **Offline-First:** Runs completely client-side. Service Worker caching guarantees full functionality in gym basements or remote trails.
+2. **Zero-Cost Backend:** Local-first sync architecture (IndexedDB + optional background sync), keeping infrastructure costs near zero.
+3. **Data Sovereignty:** Full JSON/CSV data export and import. Your health data remains yours forever.
+
+## 🗺️ Product Roadmap & Development Plan
+
+### Phase 1: Core Foundation & Movement Engine (Complete — v2.0.0) ✅
+
+- [x] **Data Foundation:** Multi-metric set logging (weight/reps, time, distance, output) with schema migration layers (`schema.js`).
+- [x] **Input Optimization:** Dynamic weight/rep modal with live barbell plate loader and rep steppers.
+- [x] **Structure & Timing:** Superset/circuit containers with round-based pacing and background-resilient rest/interval timers (`timer.js`).
+- [x] **Unit & Equipment Support:** Imperial/metric display handling, literal plate inventory management.
+- [x] **Pulse Rebrand (v2.0.0):** Pulse identity, charcoal/crimson theme, PWA manifest and icons. Existing installs keep their data — the IndexedDB name is unchanged on purpose.
+
+### Phase 2: Refactor & Cloud Sync Engine (Q1 2027) 🚧
+
+- [ ] **Kernel Extraction:** Refactor monolithic `app.js` into modular domain drivers (`/kernel`, `/modules/move`).
+- [ ] **Dynamic Metric & PR Engine:** Expand exercises to carry multiple concurrent metrics (e.g., time + distance for rowing) with volume/time-based PR analytics.
+- [ ] **Cloud Sync Engine:** Implement optional, zero-cost cloud sync using Supabase Auth + local-first delta backups.
+
+### Phase 3: Pulse Recover — Mobility & Rest Protocols (Q2 2027) 📅
+
+- [ ] **Guided Stretching:** Utilize the existing interval timer to build step-by-step mobility routines.
+- [ ] **EMOM & Work-Interval Engine:** Full support for EMOM, Tabata, and timed hold protocols.
+- [ ] **Recovery & Fatigue Logging:** Simple daily metrics for sleep quality, resting heart rate, and subjective soreness.
+
+### Phase 4: Pulse Fuel — Low-Friction Nutrition (Q3 2027) 📅
+
+- [ ] **Simplified Macro Engine:** Focus on high-value targets (protein, total calories, hydration, food quality) without burdensome 100,000-item barcode database overhead.
+- [ ] **Portion-Based Estimator:** Quick-log options for hand-portion estimates and daily protein goals.
+
+### Phase 5: Holistic Health Insights & Integrations (Q4 2027) 📅
+
+- [ ] **Cardiovascular & Metabolic Analytics:** Automated trend lines correlating movement volume, recovery markers, and metabolic consistency.
+- [ ] **Integrations & Export:** Open export paths for Obsidian, Notion, Apple Health, and Strava.
+- [ ] **Native Mobile Packages:** Optional Capacitor/Ionic wrappers for distribution on iOS App Store and Google Play.
 
 ## Project structure
 
 ```
-iron-log/
+pulse/
   index.html        # App shell + log modal
   manifest.json     # PWA manifest
   sw.js             # Service worker (offline support)
@@ -31,9 +107,8 @@ iron-log/
     confetti.js     # Set completion celebration
     backup.js       # JSON export/import
     version.js      # Version string
-  icons/
-    icon-192.png
-    icon-512.png
+  test/             # Node built-in test runner
+  icons/            # App icons
 ```
 
 ## Running locally
@@ -41,17 +116,14 @@ iron-log/
 Serve over HTTP (required for ES modules):
 
 ```bash
-# If you have Python
-python -m http.server 8080
-
-# Via VS Code — install "Live Server" extension, right-click index.html → Open with Live Server
+python3 -m http.server 8080
 ```
 
 ## Deploying to GitHub Pages
 
 1. Create a GitHub repo and push this folder
 2. Settings → Pages → Source: main branch, root
-3. Live at `https://yourusername.github.io/iron-log`
+3. Live at `https://edmundashdown.github.io/pulse`
 4. On iPhone: Safari → Share → Add to Home Screen
 
 ## Versioning
@@ -78,6 +150,12 @@ in place on upgrade (`DB_VERSION` in `js/db.js`).
 Each exercise declares which metric it logs (Settings → Exercises), and the
 Log modal renders the matching inputs. Exercises predating v3 default to
 `strength`, and the Planner and PRs tabs only offer weight/reps lifts.
+
+> **Iron Log → Pulse data continuity.** Pulse deliberately keeps the
+> IndexedDB database name `iron-log`. Both apps are served from the same
+> origin (`edmundashdown.github.io`), so Pulse reads and writes the same
+> store — your full training history carries over. Do not rename the database
+> without a migration.
 
 ### Circuits (supersets)
 
@@ -117,7 +195,8 @@ short distances (under 0.1 mi / 1 km) staying in metres. Distance is still
 
 `js/backup.js` writes `version: 3` (`BACKUP_VERSION`). On import, older
 files are migrated up to the current version; files from a newer app
-version are rejected rather than silently misread.
+version are rejected rather than silently misread. Iron Log exports
+(`iron-log-backup-*.json`) import cleanly into Pulse — same format.
 
 ## Testing
 
@@ -149,7 +228,6 @@ it is quicker and it actually checks the data:
 - Read IndexedDB straight from the page to confirm what was written:
   `indexedDB.open('iron-log')` → `transaction('sets').objectStore('sets').getAll()`.
 - Check `document.querySelectorAll('.circuit-block')` etc. for what rendered.
-- Screenshots need a visible desktop window, so don't rely on them.
 
 ## Releases
 
@@ -157,3 +235,23 @@ The service worker is cache-first and precaches an explicit asset list in
 `sw.js`. **Bump the `CACHE` name on every release** and add any new module
 to `ASSETS` — otherwise installed clients keep serving the old files.
 Bump `js/version.js` at the same time.
+
+## 🤝 Open Source & Contributing
+
+Pulse is an open-source project driven by a single belief: **essential health tools should be free, private, and accessible to everyone.**
+
+Whether you are a developer, UI designer, or health researcher, contributions are welcome:
+
+- **Code:** Check the active roadmap items in `Phase 2: Refactor & Cloud Sync Engine`.
+- **Testing:** Run local unit tests via `npm test` and verify browser PWA behaviors.
+- **Documentation:** Help refine guided recovery routines and non-profit educational guides.
+
+```bash
+git clone https://github.com/edmundashdown/pulse.git
+cd pulse
+npm test
+```
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.

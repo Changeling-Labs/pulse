@@ -1,5 +1,8 @@
 import { normalizeSet, normalizeExercise, validateSet } from './schema.js';
 
+// Pulse is the continuation of Iron Log. The IndexedDB name stays 'iron-log'
+// on purpose: same github.io origin, same database — installed clients keep
+// their full history after the rebrand. Do not rename without a migration.
 const DB_NAME = 'iron-log';
 const DB_VERSION = 3;
 

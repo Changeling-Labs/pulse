@@ -1,8 +1,8 @@
 {
-  "name": "iron-log",
-  "version": "1.3.0",
+  "name": "pulse",
+  "version": "2.0.0",
   "private": true,
-  "description": "Mobile-first PWA gym workout tracker",
+  "description": "Engineered for Healthspan — local-first, open-source health engine PWA",
   "type": "module",
   "scripts": {
     "test": "node --test",

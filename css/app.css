@@ -3,15 +3,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --accent:       #E8873A;
-  --accent-dim:   rgba(232,135,58,0.15);
-  --accent-dark:  #C46A20;
+  --accent:       #D6454B;
+  --accent-dim:   rgba(214,69,75,0.15);
+  --accent-dark:  #B93A40;
   --green:        #3DBE7A;
   --green-dim:    rgba(61,190,122,0.12);
   --red:          #E05252;
   --red-dim:      rgba(224,82,82,0.12);
 
-  --bg:           #111214;
+  --bg:           #121212;
   --surface:      #1A1C1F;
   --surface-2:    #222428;
   --border:       rgba(255,255,255,0.07);
@@ -207,7 +207,7 @@ select:focus, input:focus { border-color: var(--accent); }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #111;
+  color: #fff;
   font-weight: 600;
 }
 

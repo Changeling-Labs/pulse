@@ -78,15 +78,15 @@ export function validateSet(set = {}) {
 // are rejected rather than silently misinterpreted.
 export function migrateBackup(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error("This doesn't look like a valid Iron Log backup file.");
+    throw new Error("This doesn't look like a valid Pulse backup file.");
   }
   if (!Array.isArray(data.exercises) || !Array.isArray(data.sets)) {
-    throw new Error("This doesn't look like a valid Iron Log backup file.");
+    throw new Error("This doesn't look like a valid Pulse backup file.");
   }
 
   const version = Number(data.version) || 1;
   if (version > BACKUP_VERSION) {
-    throw new Error(`This backup was made with a newer version of Iron Log (v${version}). Update the app, then try again.`);
+    throw new Error(`This backup was made with a newer version of Pulse (v${version}). Update the app, then try again.`);
   }
 
   // v1 → v2: sets gained a `type` discriminator. Records without one

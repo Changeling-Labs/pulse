@@ -72,7 +72,7 @@ function switchTab(tab) {
 async function renderTab(tab) {
   const content = document.getElementById('content');
   const h1 = document.querySelector('#header h1');
-  const titles = { log: 'Iron Log', prs: 'Personal Records', planner: 'Session Planner', settings: 'Settings' };
+  const titles = { log: 'Pulse', prs: 'Personal Records', planner: 'Session Planner', settings: 'Settings' };
   h1.textContent = titles[tab];
   if (tab === 'log') await renderLog(content);
   else if (tab === 'prs') await renderPRs(content);
@@ -1226,7 +1226,7 @@ async function renderSettings(el) {
     </div>
 
     <div style="text-align:center;padding:24px 0 4px;font-size:12px;color:var(--text-3)">
-      Iron Log v${VERSION} · ${BUILD_DATE}
+      Pulse v${VERSION} · ${BUILD_DATE}
     </div>
     <div style="text-align:center;padding:0 0 8px;font-size:12px">
       <a href="../privacy.html" style="color:var(--text-2);text-decoration:underline">Privacy Policy</a>

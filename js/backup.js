@@ -25,7 +25,7 @@ export async function exportBackup() {
   const date = localDateStr();
   const a = document.createElement('a');
   a.href = url;
-  a.download = `iron-log-backup-${date}.json`;
+  a.download = `pulse-backup-${date}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -43,7 +43,7 @@ export function importBackup(onComplete) {
     try {
       parsed = JSON.parse(await file.text());
     } catch {
-      alert('Could not read that file — make sure it\'s a valid Iron Log backup.');
+      alert('Could not read that file — make sure it\'s a valid Pulse backup.');
       return;
     }
 
