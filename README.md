@@ -70,7 +70,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] Input Optimization: Dynamic weight/rep modal with live barbell plate loader and rep steppers (`js/calc.js`).
 - [x] Structure & Timing: Superset/circuit containers with round-based pacing and background-resilient rest/interval timers (`js/timer.js`, `js/circuits.js`).
 - [x] Unit & Equipment Support: Imperial/metric display handling, literal plate inventory management.
-- [x] Dynamic Metric & PR Engine (Pulse v2.1.0): Exercises declare multiple metrics; composite sets; per-metric bests in the PRs tab.
+- [x] Dynamic Metric & PR Engine (Pulse v2.1.0): Exercises declare multiple metrics; composite sets; per-metric bests in the Progress tab.
 
 ### Phase 2: Pulse FUEL — Low-Friction Nutrition & Education (Complete — v2.2.0) ✅
 
@@ -93,6 +93,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Step 5.1: Training ↔ Recovery Insights (v2.9.0)** — `js/insights.js` (pure, tested) buckets training into completed Monday–Sunday weeks, splits them at the median weekly set count, and compares sleep, soreness and resting HR between heavier and lighter weeks. It also reports Pearson correlations and one plain-language readout. Deliberately descriptive: no readiness score, no prediction, no advice.
 - [x] **Step 5.2: Open Exports (v2.10.0)** — Settings gains one-click CSV snapshots (sets, fuel, water, recovery) and a weekly Markdown note shaped for Obsidian. `js/exports.js` (pure, tested) builds the strings; `js/download.js` hands them to the browser. Read-only — the JSON backup stays the restore path.
 - [x] **Reliability pass (v2.11.0)** — iOS audio hardening: the cue layer now resumes a context parked in `interrupted`, declares a `playback` audio session (so the ring/silent switch no longer mutes timer cues), unlocks with a silent buffer, and re-primes on the next gesture after backgrounding. Settings gains a **Test sound** button. Fuel myth cards got a conservative evidence pass plus a permanent "Educational only — not medical advice" line.
+- [x] **Progress → Trends (v2.12.0)** — the PRs tab becomes **Progress**, with a Records | Trends switch. Trends is descriptive only: weekly tonnage and sessions-per-week charts over 4 weeks / 12 weeks / 1 year, a summary row (training days, sets, tonnage, sessions per week), and a top-set sparkline per lift for the last 8 sessions. Gaps render as gaps, a zero-tonnage week renders as a hairline, and the delta compares the selected window with the window immediately before it. No score, no target, no prediction. `js/trends.js` is pure and tested (19 tests).
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -119,7 +120,7 @@ pulse/
       helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
     modules/
       move/         # log.js, modal.js (log modal + circuits), timer.js (rest bar),
-                    # intervals.js (EMOM/Tabata/holds runner), prs.js, planner.js,
+                    # intervals.js (EMOM/Tabata/holds runner), progress.js, planner.js,
                     # shared.js (exercise helpers)
       fuel/         # fuel.js — Fuel tab + portion modal
       recover/      # recover.js — Recover check-in, trends, history
@@ -138,12 +139,22 @@ pulse/
     fuel.js         # Pulse Fuel logic (hand portions, myth cards)
     recover.js      # Pulse Recover logic (date windows, averages, deltas)
     insights.js     # Training volume ↔ recovery comparison (descriptive)
+    trends.js       # Weekly trend series + sparkline/bar chart strings
     exports.js      # CSV + weekly Markdown builders (read-only snapshots)
     download.js     # Blob/anchor download helper
     version.js      # Version string
   test/             # Node built-in test runner
   icons/            # App icons
 ```
+
+### Progress
+
+The **Progress** tab holds two views:
+
+- **Records** — 1RM/3RM/5RM, best volume set and per-metric bests, filtered by the PR window (3 months → all time).
+- **Trends** — weekly tonnage and sessions-per-week bars, a summary row (training days, sets, tonnage, sessions per week) and a top-set sparkline per lift for its last 8 sessions. Range is 4 weeks, 12 weeks or 1 year.
+
+Trends are deliberately **descriptive**: no readiness score, no target line, no projection, no "good/bad" language. Missing weeks are drawn as gaps rather than zeros, a week with sets but no tonnage (bodyweight or timed work) gets a hairline bar instead of disappearing, and percentage changes are always labelled as *vs the previous window of the same length*. All maths happens on-device from the sets already in IndexedDB — no network, no new store.
 
 ## Data model
 
@@ -258,7 +269,7 @@ Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add 
 
 ## Testing
 
-Schema, migration, date, circuit-grouping, timer, PR, fuel, recovery, insight and export logic is covered by Node's built-in test runner (no dependencies):
+Schema, migration, date, circuit-grouping, timer, PR, fuel, recovery, insight, trend and export logic is covered by Node's built-in test runner (no dependencies):
 
 ```bash
 npm test

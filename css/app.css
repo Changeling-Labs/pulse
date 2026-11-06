@@ -1379,9 +1379,9 @@ body.interval-active { overflow: hidden; }
 .range-toggle button.active { background: var(--brand-dim); color: var(--glow); }
 
 .trend { margin-top: 14px; }
-.trend-head { display: flex; justify-content: space-between; align-items: baseline; }
+.trend-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
 .trend-name { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
-.trend-avg { font-size: 10px; color: var(--text-3); }
+.trend-avg { font-size: 10px; color: var(--text-3); margin-left: auto; text-align: right; }
 
 .trend-bars {
   display: flex;
@@ -1541,4 +1541,84 @@ body.interval-active { overflow: hidden; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-3);
+}
+
+/* ── Progress: Records / Trends ───────────────────────── */
+.progress-seg {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.progress-seg button,
+.progress-range button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.progress-range { margin-bottom: 12px; }
+
+.stat-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat-val.sm { font-size: 20px; }
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 34px;
+  margin-top: 8px;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--glow);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.spark-point { stroke-width: 3; }
+
+.lift-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.lift-row:last-of-type { border-bottom: none; }
+
+.lift-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.lift-name { font-size: 13px; font-weight: 600; }
+
+.lift-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.lift-reps {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.lift-foot {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+/* Explanatory captions under a chart. Deliberately quiet — the number is the
+   content, this is the caveat. */
+.trend-foot {
+  font-size: 10px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-top: 8px;
 }

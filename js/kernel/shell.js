@@ -15,6 +15,8 @@ export let state = {
   exercises: [],
   equipment: { barWeight: 45, plates: [] },
   prWindow: '365',
+  progressView: 'records',   // Records | Trends inside the Progress tab
+  trendRange: '12w',        // 4w | 12w | 1y
   restSeconds: 90,
   fuelMyth: null,          // non-null after "show me another" — otherwise the daily card
   plannerWorkout: [
@@ -82,6 +84,8 @@ export async function boot() {
   state.equipment = await getEquipment();
   state.unit = await getPref('unit', 'lbs');
   state.prWindow = await getPref('prWindow', '365');
+  state.progressView = await getPref('progressView', 'records');
+  state.trendRange = await getPref('trendRange', '12w');
   state.restSeconds = await getPref('restSeconds', 90);
 
   for (const init of inits) await init();

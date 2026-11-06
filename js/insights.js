@@ -48,12 +48,16 @@ export function setTonnage(set) {
 }
 
 // ── Weekly series ──────────────────────────────────────────
-// Returns `weeks` completed weeks, oldest → newest. Each entry carries the
-// week's volume plus that week's average recovery markers (null when the
-// marker was never logged that week).
-export function weekSeries(sets = [], recoveryLogs = [], weeks = 12, endDate = localDateStr()) {
-  const n = Math.max(1, Math.min(52, Math.round(weeks)));
-  const lastStart = shift(mondayOf(endDate), -7);   // last completed week
+// Returns `weeks` buckets, oldest → newest. By default these are *completed*
+// weeks (the current partial week is excluded, which is what the insight
+// comparison wants). Pass `{ includeCurrent: true }` for trend charts, where
+// users expect to see "this week so far".
+//
+// Each entry carries the week's volume plus that week's average recovery
+// markers (null when the marker was never logged that week).
+export function weekSeries(sets = [], recoveryLogs = [], weeks = 12, endDate = localDateStr(), { includeCurrent = false } = {}) {
+  const n = Math.max(1, Math.min(104, Math.round(weeks)));
+  const lastStart = shift(mondayOf(endDate), includeCurrent ? 0 : -7);
 
   const recoveryByDate = new Map((recoveryLogs ?? []).map(l => [l.date, l]));
   const setsByDate = new Map();
@@ -90,6 +94,7 @@ export function weekSeries(sets = [], recoveryLogs = [], weeks = 12, endDate = l
       sets: count,
       tonnage,
       sessions,
+      days: sessions,          // distinct training days — same count, clearer name
       recoveryDays: recovery.length,
       sleepAvg: avgOf(recovery, 'sleepHours'),
       sorenessAvg: avgOf(recovery, 'soreness'),
