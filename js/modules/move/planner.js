@@ -45,7 +45,7 @@ async function renderPlanner(el) {
       const modePill = `
         <button onclick="toggleSetMode(${bi},${si})"
           style="background:none;border:1px solid var(--border-md);border-radius:5px;
-                 padding:3px 5px;font-size:10px;color:${isPct ? 'var(--accent)' : 'var(--text-2)'};
+                 padding:3px 5px;font-size:10px;color:${isPct ? 'var(--glow)' : 'var(--text-2)'};
                  cursor:pointer;white-space:nowrap;font-family:var(--font-body);flex-shrink:0;line-height:1">
           ${isPct ? '%' : 'lb'}
         </button>`;
@@ -98,7 +98,7 @@ async function renderPlanner(el) {
 
     let platesHtml = '';
     if (allDone) {
-      platesHtml = `<div style="text-align:center;padding:10px;font-size:14px;color:var(--accent)">🎉 Done!</div>`;
+      platesHtml = `<div style="text-align:center;padding:10px;font-size:14px;color:var(--glow)">🎉 Done!</div>`;
     } else if (incompletePlan.length > 0) {
       let prevPlates = currentPlates;
       platesHtml = incompletePlan.map((step, idx) => {
@@ -127,7 +127,7 @@ async function renderPlanner(el) {
         return `
           <div style="margin-bottom:10px${isNext ? '' : ';opacity:0.5'}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-              ${isNext ? `<span style="font-size:9px;font-weight:700;font-family:var(--font-display);background:var(--accent);color:#111;padding:3px 8px;border-radius:4px;letter-spacing:0.08em;text-transform:uppercase">NEXT</span>` : ''}
+              ${isNext ? `<span style="font-size:9px;font-weight:700;font-family:var(--font-display);background:var(--glow);color:#00283A;padding:3px 8px;border-radius:4px;letter-spacing:0.08em;text-transform:uppercase">NEXT</span>` : ''}
               <div style="font-size:12px;color:var(--text-2)">${setLabel}</div>
             </div>
             ${instructionHtml}${note}
@@ -136,9 +136,9 @@ async function renderPlanner(el) {
     }
 
     const prDisplay = pr
-      ? `<div style="background:var(--accent-dim);border-radius:var(--radius);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
+      ? `<div style="background:var(--brand-dim);border-radius:var(--radius);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
           <span style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.08em">${block.rmType}RM PR</span>
-          <span style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent)">${dw(pr)}</span>
+          <span style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--glow)">${dw(pr)}</span>
         </div>`
       : `<div style="font-size:12px;color:var(--text-3);padding:6px 0">No PR logged yet for this lift.</div>`;
 

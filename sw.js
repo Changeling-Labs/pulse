@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v10';
+const CACHE = 'pulse-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ const ASSETS = [
   './js/confetti.js',
   './js/backup.js',
   './js/version.js',
+  './icons/pulse-mark.svg',
   './js/sync.js',
   './js/sync-core.js',
   './js/sync-config.js',

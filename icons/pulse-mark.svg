@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40" width="64" height="40" fill="none">
+  <!-- Changeling Labs brand: Glowing Turquoise ECG stroke -->
+  <path d="M2 20 H18 L22 12 L27 28 L31 16 L35 20 H48" stroke="#00F5FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 20 C50 16 54 16 57 18.5 C60 21 60 25.5 57 27.5 C54 29.5 50 29 48 26 V20 Z" fill="#00F5FF" opacity="0.9"/>
+</svg>

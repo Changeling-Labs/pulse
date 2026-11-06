@@ -3,23 +3,28 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --accent:       #D6454B;
-  --accent-dim:   rgba(214,69,75,0.15);
-  --accent-dark:  #B93A40;
-  --green:        #3DBE7A;
-  --green-dim:    rgba(61,190,122,0.12);
-  --red:          #E05252;
-  --red-dim:      rgba(224,82,82,0.12);
+  /* Changeling Labs — Electric Deep Blue + Glowing Turquoise on Deep Navy */
+  --brand:        #0056D2;
+  --brand-hi:     #3D7BE0;
+  --brand-dark:   #003D93;
+  --brand-dim:    rgba(0,86,210,0.28);
+  --glow:         #00F5FF;
+  --glow-dim:     rgba(0,245,255,0.15);
 
-  --bg:           #121212;
-  --surface:      #1A1C1F;
-  --surface-2:    #222428;
-  --border:       rgba(255,255,255,0.07);
-  --border-md:    rgba(255,255,255,0.13);
+  --green:        #34D399;
+  --green-dim:    rgba(52,211,153,0.16);
+  --red:          #F87171;
+  --red-dim:      rgba(248,113,113,0.16);
 
-  --text:         #F0EDE8;
-  --text-2:       #888;
-  --text-3:       #555;
+  --bg:           #0B111E;
+  --surface:      #141D30;
+  --surface-2:    #1B2540;
+  --border:       rgba(158,196,255,0.11);
+  --border-md:    rgba(158,196,255,0.22);
+
+  --text:         #F3F6FE;
+  --text-2:       #A4B1C6;
+  --text-3:       #8296AD;
 
   --font-display: 'Barlow Condensed', system-ui, sans-serif;
   --font-body:    'Inter', system-ui, sans-serif;
@@ -75,7 +80,7 @@ html, body {
   background: none;
   border: none;
   font-size: 24px;
-  color: var(--accent);
+  color: var(--glow);
   cursor: pointer;
   padding: 4px;
   margin-left: -4px;
@@ -85,7 +90,7 @@ html, body {
   background: none;
   border: none;
   font-size: 24px;
-  color: var(--accent);
+  color: var(--glow);
   cursor: pointer;
   padding: 4px;
 }
@@ -128,7 +133,21 @@ html, body {
 }
 
 .nav-btn .icon { font-size: 20px; }
-.nav-btn.active { color: var(--accent); }
+.nav-btn.active { color: var(--glow); }
+.nav-btn { position: relative; }
+.nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--brand), var(--glow));
+  transition: transform 0.2s ease;
+}
+.nav-btn.active::after { transform: translateX(-50%) scaleX(1); }
 
 /* ── Cards ───────────────────────────────────────────── */
 .card {
@@ -164,7 +183,7 @@ select, input[type="text"], input[type="number"] {
   -webkit-appearance: none;
 }
 
-select:focus, input:focus { border-color: var(--accent); }
+select:focus, input:focus { border-color: var(--brand-hi); }
 
 .form-row {
   display: flex;
@@ -205,14 +224,14 @@ select:focus, input:focus { border-color: var(--accent); }
 .btn:active { transform: scale(0.97); }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--brand);
+  border-color: var(--brand);
   color: #fff;
   font-weight: 600;
 }
 
-.btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
-.btn-ghost { background: none; border: none; color: var(--accent); padding: 8px 4px; }
+.btn-primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); }
+.btn-ghost { background: none; border: none; color: var(--glow); padding: 8px 4px; }
 .btn-full { width: 100%; }
 
 /* ── FAB ─────────────────────────────────────────────── */
@@ -223,10 +242,11 @@ select:focus, input:focus { border-color: var(--accent); }
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--brand);
   border: none;
-  color: #111;
+  color: #fff;
   font-size: 28px;
+  box-shadow: 0 0 0 2px rgba(0,245,255,0.30), 0 8px 24px rgba(0,86,210,0.45);
   font-weight: 300;
   cursor: pointer;
   display: flex;
@@ -264,7 +284,7 @@ select:focus, input:focus { border-color: var(--accent); }
 .rest-fill {
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--brand), var(--glow));
   transition: width 0.25s linear;
 }
 
@@ -303,7 +323,7 @@ select:focus, input:focus { border-color: var(--accent); }
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
-  color: var(--accent);
+  color: var(--glow);
   font-variant-numeric: tabular-nums;
 }
 
@@ -364,7 +384,7 @@ body.rest-active #content { padding-bottom: 104px; }
   line-height: 1;
 }
 
-.stat-val.accent { color: var(--accent); }
+.stat-val.accent { color: var(--glow); }
 .stat-lbl { font-size: 10px; color: var(--text-3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* ── Log items ───────────────────────────────────────── */
@@ -384,7 +404,7 @@ body.rest-active #content { padding-bottom: 104px; }
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--glow);
   letter-spacing: 0.02em;
 }
 
@@ -393,7 +413,7 @@ body.rest-active #content { padding-bottom: 104px; }
   padding: 12px;
   margin: 10px 0;
   border: 1px solid var(--border-md);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--brand);
   border-radius: var(--radius);
   background: var(--surface-2);
 }
@@ -411,7 +431,7 @@ body.rest-active #content { padding-bottom: 104px; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--accent);
+  color: var(--glow);
 }
 
 .circuit-meta { font-size: 11px; color: var(--text-3); margin-left: 8px; }
@@ -421,8 +441,8 @@ body.rest-active #content { padding-bottom: 104px; }
 .circuit-run {
   font-size: 12px;
   padding: 4px 10px;
-  color: var(--accent);
-  border: 1px solid var(--accent-dim);
+  color: var(--glow);
+  border: 1px solid var(--brand-dim);
   border-radius: var(--radius);
 }
 
@@ -451,7 +471,7 @@ body.rest-active #content { padding-bottom: 104px; }
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--glow);
 }
 
 /* Circuit builder (Log modal) */
@@ -481,7 +501,7 @@ body.rest-active #content { padding-bottom: 104px; }
   -webkit-tap-highlight-color: transparent;
 }
 
-.mode-btn.active { background: var(--accent); color: #000; }
+.mode-btn.active { background: var(--glow); color: #00283A; }
 
 .circuit-item {
   padding: 12px;
@@ -506,8 +526,8 @@ body.rest-active #content { padding-bottom: 104px; }
   display: inline-block;
   font-size: 9px;
   font-weight: 700;
-  background: var(--accent-dim);
-  color: var(--accent);
+  background: var(--brand-dim);
+  color: var(--glow);
   padding: 2px 6px;
   border-radius: 4px;
   margin-left: 7px;
@@ -543,7 +563,7 @@ body.rest-active #content { padding-bottom: 104px; }
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--glow);
   margin-top: 2px;
   letter-spacing: 0.02em;
 }
@@ -624,8 +644,8 @@ body.rest-active #content { padding-bottom: 104px; }
   left: 50%;
   transform: translateX(-50%) translateY(12px);
   background: var(--surface);
-  border: 1px solid var(--accent);
-  color: var(--accent);
+  border: 1px solid var(--glow);
+  color: var(--glow);
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
@@ -657,7 +677,7 @@ body.rest-active #content { padding-bottom: 104px; }
   color: var(--text);
 }
 
-.chip b { color: var(--accent); font-weight: 700; }
+.chip b { color: var(--glow); font-weight: 700; }
 .chip-note { font-size: 11px; color: var(--text-3); margin-top: 6px; }
 
 /* ── Section head ────────────────────────────────────── */
@@ -786,7 +806,7 @@ body.rest-active #content { padding-bottom: 104px; }
   -webkit-tap-highlight-color: transparent;
 }
 
-.step-btn:active { transform: scale(0.94); border-color: var(--accent); color: var(--accent); }
+.step-btn:active { transform: scale(0.94); border-color: var(--brand-hi); color: var(--glow); }
 
 .step-value {
   flex: 1;
@@ -821,7 +841,7 @@ body.rest-active #content { padding-bottom: 104px; }
 }
 
 .chip-btn:active,
-.chip-btn.active { border-color: var(--accent); color: var(--accent); }
+.chip-btn.active { border-color: var(--brand-hi); color: var(--glow); background: var(--glow-dim); }
 
 /* Exercise metric toggles (Settings → Exercises): multi-select pills */
 .metric-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -839,14 +859,14 @@ body.rest-active #content { padding-bottom: 104px; }
   -webkit-tap-highlight-color: transparent;
 }
 
-.metric-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.metric-chip.active { border-color: var(--brand-hi); color: var(--glow); background: var(--brand-dim); }
 
 /* ── Divider ─────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 12px 0; }
 
 /* ── Utility ─────────────────────────────────────────── */
 .hidden { display: none !important; }
-.accent { color: var(--accent); }
+.accent { color: var(--glow); }
 .muted { color: var(--text-2); font-size: 13px; }
 
 /* ── Pulse Fuel ─────────────────────────────────────── */
@@ -854,13 +874,13 @@ body.rest-active #content { padding-bottom: 104px; }
 .meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
 .meter-head b { color: var(--text); font-weight: 600; }
 .meter { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.meter-fill { height: 100%; background: var(--accent); border-radius: 4px; width: 0%; transition: width 0.3s; }
+.meter-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--glow)); border-radius: 4px; width: 0%; transition: width 0.3s; }
 .meter-fill.green { background: var(--green); }
 
 .water-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .water-btns { display: flex; align-items: center; gap: 8px; }
 .water-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-md); background: none; color: var(--text-2); font-size: 17px; cursor: pointer; }
-.water-btn:active { border-color: var(--accent); color: var(--accent); }
+.water-btn:active { border-color: var(--brand-hi); color: var(--glow); }
 
 .portion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .portion-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -868,15 +888,15 @@ body.rest-active #content { padding-bottom: 104px; }
 .portion-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .portion-sub { font-size: 9px; color: var(--text-3); text-align: center; }
 .portion-stepper { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
-.portion-stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-md); background: none; color: var(--accent); font-size: 19px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.portion-stepper button:active { border-color: var(--accent); }
+.portion-stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-md); background: none; color: var(--glow); font-size: 19px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.portion-stepper button:active { border-color: var(--brand-hi); }
 .portion-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; min-width: 26px; text-align: center; }
 
 .fuel-estimate { text-align: center; font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text-2); margin-top: 12px; }
-.fuel-estimate b { color: var(--accent); }
+.fuel-estimate b { color: var(--glow); }
 
-.myth-card { background: linear-gradient(165deg, rgba(214,69,75,0.14), var(--surface) 50%); border: 1px solid rgba(214,69,75,0.35); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
-.myth-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent); border: 1px solid rgba(214,69,75,0.5); border-radius: 4px; padding: 3px 8px; margin-bottom: 10px; text-transform: uppercase; }
+.myth-card { background: linear-gradient(165deg, rgba(0,245,255,0.10), var(--surface) 55%); border: 1px solid rgba(0,245,255,0.28); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
+.myth-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--glow); border: 1px solid rgba(0,245,255,0.5); border-radius: 4px; padding: 3px 8px; margin-bottom: 10px; text-transform: uppercase; }
 .myth-text { font-family: var(--font-display); font-size: 17px; font-weight: 600; line-height: 1.35; margin-bottom: 8px; }
 .myth-truth, .myth-action { font-size: 12px; color: var(--text-2); line-height: 1.55; }
 .myth-action { margin-top: 6px; color: var(--text); }
@@ -887,3 +907,9 @@ body.rest-active #content { padding-bottom: 104px; }
 .fuel-name { font-weight: 600; font-size: 13px; }
 .fuel-detail { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 .fuel-check { color: var(--green); font-size: 11px; margin-left: 6px; }
+
+/* ── Changeling focus ring ── */
+:where(button, select, input, a, [role="button"]):focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}

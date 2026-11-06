@@ -135,6 +135,7 @@ async function renderSettings(el) {
     </div>
     <div style="text-align:center;padding:0 0 8px;font-size:12px">
       <a href="../privacy.html" style="color:var(--text-2);text-decoration:underline">Privacy Policy</a>
+      <div style="margin-top:6px;color:var(--text-3);font-size:11px">A <a href="https://changelinglabs.com" style="color:var(--glow);text-decoration:none">Changeling Labs</a> app · <a href="https://changelinglabs.com" style="color:var(--text-2);text-decoration:none">changelinglabs.com</a></div>
     </div>`;
 
   renderPlateEditor();
