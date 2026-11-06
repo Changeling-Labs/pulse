@@ -1,11 +1,17 @@
 // ── Pulse Settings tab ─────────────────────────────────────
 import { state, renderTab, registerTab } from '../kernel/shell.js';
-import { getExercises, getPref, setPref } from '../db.js';
+import {
+  getExercises, getPref, setPref,
+  getSets, getFuelLogs, getWaterLogs, getRecoveryLogs,
+} from '../db.js';
 import { exportBackup, importBackup } from '../backup.js';
 import { SET_TYPES, METRIC_LABELS } from '../schema.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { REST_OPTIONS } from './move/timer.js';
 import { getSyncStatus, sendMagicLink, signOutSync, syncNow, resetCloudToLocal } from '../sync.js';
+import { setsCsv, fuelCsv, waterCsv, recoveryCsv, weeklyMarkdown, mondayOf } from '../exports.js';
+import { downloadText } from '../download.js';
+import { localDateStr } from '../dates.js';
 
 function syncCardHtml(status) {
   if (status.signedIn) {
@@ -128,6 +134,19 @@ async function renderSettings(el) {
         <div><div class="setting-label">Import backup</div><div class="setting-sub">Restore or merge from a JSON file</div></div>
         <button class="btn" onclick="doImport()">Import</button>
       </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:9px">
+        <div>
+          <div class="setting-label">Open exports</div>
+          <div class="setting-sub">Read-only snapshots — CSV for spreadsheets, Markdown for your vault</div>
+        </div>
+        <div class="export-buttons">
+          <button class="btn btn-ghost" onclick="exportCsv('sets')">Sets</button>
+          <button class="btn btn-ghost" onclick="exportCsv('fuel')">Fuel</button>
+          <button class="btn btn-ghost" onclick="exportCsv('water')">Water</button>
+          <button class="btn btn-ghost" onclick="exportCsv('recovery')">Recover</button>
+          <button class="btn btn-ghost" onclick="exportWeekNote()">This week (MD)</button>
+        </div>
+      </div>
     </div>
 
     <div style="text-align:center;padding:24px 0 4px;font-size:12px;color:var(--text-3)">
@@ -144,6 +163,37 @@ async function renderSettings(el) {
 window.doExport = async function() {
   try { await exportBackup(); } catch(e) { alert('Export failed: ' + e.message); }
 };
+
+// ── Open exports ───────────────────────────────────────────
+// Local-only: read the stores, build a string, hand it to the browser. The
+// JSON backup remains the restore path; these are deliberately one-way.
+const safe = fn => async (...args) => {
+  try { await fn(...args); } catch (e) { alert('Export failed: ' + e.message); }
+};
+
+window.exportCsv = safe(async function(domain) {
+  const today = localDateStr();
+
+  if (domain === 'sets') {
+    const [sets, exercises] = await Promise.all([getSets(), getExercises()]);
+    downloadText(`pulse-sets-${today}.csv`, setsCsv(sets, exercises), 'text/csv');
+  } else if (domain === 'fuel') {
+    downloadText(`pulse-fuel-${today}.csv`, fuelCsv(await getFuelLogs()), 'text/csv');
+  } else if (domain === 'water') {
+    downloadText(`pulse-water-${today}.csv`, waterCsv(await getWaterLogs()), 'text/csv');
+  } else if (domain === 'recovery') {
+    downloadText(`pulse-recovery-${today}.csv`, recoveryCsv(await getRecoveryLogs()), 'text/csv');
+  }
+});
+
+window.exportWeekNote = safe(async function() {
+  const [sets, exercises, recoveryLogs, fuelLogs, waterLogs] = await Promise.all([
+    getSets(), getExercises(), getRecoveryLogs(), getFuelLogs(), getWaterLogs(),
+  ]);
+  const weekStart = mondayOf(localDateStr());
+  const md = weeklyMarkdown({ sets, exercises, recoveryLogs, fuelLogs, waterLogs, weekStart });
+  downloadText(`pulse-week-${weekStart}.md`, md, 'text/markdown');
+});
 
 window.doImport = function() {
   importBackup(async () => {

@@ -91,7 +91,8 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 ### Phase 5: Holistic Health Insights & Integrations (Q3 2027) 📅
 
 - [x] **Step 5.1: Training ↔ Recovery Insights (v2.9.0)** — `js/insights.js` (pure, tested) buckets training into completed Monday–Sunday weeks, splits them at the median weekly set count, and compares sleep, soreness and resting HR between heavier and lighter weeks. It also reports Pearson correlations and one plain-language readout. Deliberately descriptive: no readiness score, no prediction, no advice.
-- [ ] Integrations & Export: open export paths for Obsidian, Notion, Apple Health, and Strava.
+- [x] **Step 5.2: Open Exports (v2.10.0)** — Settings gains one-click CSV snapshots (sets, fuel, water, recovery) and a weekly Markdown note shaped for Obsidian. `js/exports.js` (pure, tested) builds the strings; `js/download.js` hands them to the browser. Read-only — the JSON backup stays the restore path.
+- [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
 ## Running locally
@@ -136,6 +137,8 @@ pulse/
     fuel.js         # Pulse Fuel logic (hand portions, myth cards)
     recover.js      # Pulse Recover logic (date windows, averages, deltas)
     insights.js     # Training volume ↔ recovery comparison (descriptive)
+    exports.js      # CSV + weekly Markdown builders (read-only snapshots)
+    download.js     # Blob/anchor download helper
     version.js      # Version string
   test/             # Node built-in test runner
   icons/            # App icons
@@ -213,6 +216,24 @@ Recover is a *signal*, not a diagnosis: it never scores you or tells you to trai
 
 Below the trends, **Training ↔ recovery** compares your completed weeks by training volume. Weeks are split at the median weekly *set* count (a hard calisthenics week counts the same as a heavy barbell week; tonnage is shown only where weight × reps exists), then sleep, soreness and resting HR are averaged for the heavier and lighter halves. When there are enough paired weeks, it also shows a Pearson correlation and one plain-language line. It refuses to draw a conclusion from fewer than four eligible weeks, and it always says the quiet part out loud: association only — recovery has many other inputs. Logic lives in `js/insights.js` (pure and unit-tested); no new database, no sync domain, no network.
 
+### Open exports
+
+Settings → Data offers **Open exports**, all local and one-way:
+
+| Button | File | Contents |
+|---|---|---|
+| Sets | `pulse-sets-YYYY-MM-DD.csv` | one row per set, date-sorted, exercise names resolved, weights in **lb and kg** |
+| Fuel | `pulse-fuel-…csv` | portions, estimated macros, whole-food flag, UTC timestamp |
+| Water | `pulse-water-…csv` | one row per day |
+| Recover | `pulse-recovery-…csv` | sleep, soreness, resting HR, note |
+| This week (MD) | `pulse-week-YYYY-MM-DD.md` | Monday–Sunday note: training table (sets, reps, tonnage, top set), recovery averages, fuel/water totals |
+
+CSV follows the usual quoting rules (embedded commas, quotes and newlines are
+escaped; rows are CRLF). The Markdown note is plain Obsidian-flavoured
+Markdown with pipes escaped, so it drops straight into a vault. Exports never
+touch the network and never modify data — **restore still goes through the
+JSON backup**.
+
 ### Backup compatibility
 
 `js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `recoveryLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel/recovery arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes all local history on whichever origin you're on** — export first.
@@ -234,7 +255,7 @@ Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add 
 
 ## Testing
 
-Schema, migration, date, circuit-grouping, timer, PR, fuel, recovery and insight logic is covered by Node's built-in test runner (no dependencies):
+Schema, migration, date, circuit-grouping, timer, PR, fuel, recovery, insight and export logic is covered by Node's built-in test runner (no dependencies):
 
 ```bash
 npm test

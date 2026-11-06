@@ -1520,3 +1520,15 @@ body.interval-active { overflow: hidden; }
   line-height: 1.5;
   color: var(--text-3);
 }
+
+/* ── Open export buttons ──────────────────────────────── */
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.export-buttons .btn {
+  font-size: 12px;
+  padding: 6px 12px;
+}
