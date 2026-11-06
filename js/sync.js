@@ -540,6 +540,7 @@ async function pullAll() {
       }
 
       if (row.domain === 'equipment') {
+        if (row.external_id !== 'equipment') continue;    // junk rows cannot clobber the singleton
         if (row.deleted_at) continue;
         if (!shouldApplyRemote('equipment', 'equipment', dirtyKeys)) { result.skippedLocalWins++; continue; }
         const cur = await syncRawAll('equipment');
