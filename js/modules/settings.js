@@ -47,7 +47,7 @@ function syncCardHtml(status) {
     <div class="setting-row" style="gap:8px">
       <div style="flex:1">
         <div class="setting-label">Cloud sync</div>
-        <div class="setting-sub">Optional. Sign in and your sets, exercises, fuel logs, hydration and equipment roam across devices. Nothing ever leaves this device until you sign in. Works on every device, including offline training sessions.</div>
+        <div class="setting-sub">Optional. Sign in and your sets, exercises, fuel logs, hydration, recovery check-ins and equipment roam across devices. Nothing ever leaves this device until you sign in. Works on every device, including offline training sessions.</div>
       </div>
     </div>
     <div class="setting-row" style="gap:8px">

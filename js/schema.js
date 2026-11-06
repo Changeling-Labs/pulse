@@ -124,6 +124,48 @@ export function normalizeWaterLog(raw = {}) {
   return { date, glasses: intOr(out.glasses, 0) };
 }
 
+// ── Pulse Recover ──────────────────────────────────────────
+// One check-in per calendar day. Any metric may be null ("not logged") so
+// a quick sleep-only entry is valid; validateRecoveryLog still requires at
+// least one value, and the UI never writes an empty row.
+export function normalizeRecoveryLog(raw = {}) {
+  const out = { ...raw };
+  const date = typeof out.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(out.date) ? out.date : localDateStr();
+  const numOrNull = v =>
+    (v === null || v === undefined || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
+
+  let sleepHours = numOrNull(out.sleepHours);
+  if (sleepHours !== null) sleepHours = Math.round(Math.max(0, Math.min(24, sleepHours)) * 4) / 4;
+
+  let soreness = numOrNull(out.soreness);
+  if (soreness !== null) soreness = Math.round(Math.max(1, Math.min(10, soreness)));
+
+  let restingHr = numOrNull(out.restingHr);
+  if (restingHr !== null) restingHr = Math.round(Math.max(30, Math.min(220, restingHr)));
+
+  const note = typeof out.note === 'string' ? out.note.trim().slice(0, 500) : '';
+  return { ...out, date, sleepHours, soreness, restingHr, note };
+}
+
+export function validateRecoveryLog(log = {}) {
+  if (typeof log.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(log.date)) {
+    return { ok: false, error: 'Missing or invalid date (YYYY-MM-DD).' };
+  }
+  if (log.sleepHours !== null && (!Number.isFinite(log.sleepHours) || log.sleepHours < 0 || log.sleepHours > 24)) {
+    return { ok: false, error: 'Sleep must be between 0 and 24 hours.' };
+  }
+  if (log.soreness !== null && (!Number.isInteger(log.soreness) || log.soreness < 1 || log.soreness > 10)) {
+    return { ok: false, error: 'Soreness must be a whole number from 1 to 10.' };
+  }
+  if (log.restingHr !== null && (!Number.isInteger(log.restingHr) || log.restingHr < 30 || log.restingHr > 220)) {
+    return { ok: false, error: 'Resting heart rate must be between 30 and 220 bpm.' };
+  }
+  if (log.sleepHours === null && log.soreness === null && log.restingHr === null && !log.note) {
+    return { ok: false, error: 'Log at least one recovery metric.' };
+  }
+  return { ok: true };
+}
+
 // Bump when the *backup file* shape changes. See migrateBackup().
 // v4 = exercises carry `metrics[]` AND backups carry fuelLogs/waterLogs.
 // Older exports (≤v2.1.0) import fine: fuel arrays default to [].
@@ -202,6 +244,9 @@ export function migrateBackup(data) {
   const exercises = data.exercises.map(normalizeExercise);
   const fuelLogs = Array.isArray(data.fuelLogs) ? data.fuelLogs.map(normalizeFuelLog) : [];
   const waterLogs = Array.isArray(data.waterLogs) ? data.waterLogs.map(normalizeWaterLog) : [];
+  // v2.8.0 adds `recoveryLogs` additively — still BACKUP_VERSION 4, so v4
+  // files exported before Recover existed import with an empty array.
+  const recoveryLogs = Array.isArray(data.recoveryLogs) ? data.recoveryLogs.map(normalizeRecoveryLog) : [];
 
-  return { ...data, version: BACKUP_VERSION, exercises, sets, fuelLogs, waterLogs };
+  return { ...data, version: BACKUP_VERSION, exercises, sets, fuelLogs, waterLogs, recoveryLogs };
 }

@@ -1,4 +1,4 @@
-import { normalizeSet, normalizeExercise, validateSet, normalizeFuelLog, validateFuelLog, normalizeWaterLog } from './schema.js';
+import { normalizeSet, normalizeExercise, validateSet, normalizeFuelLog, validateFuelLog, normalizeWaterLog, normalizeRecoveryLog, validateRecoveryLog } from './schema.js';
 
 // Sync bookkeeping -----------------------------------------------------------
 // Write paths stamp two additive fields onto records:
@@ -45,6 +45,8 @@ const DB_NAME = 'iron-log';
 const DB_VERSION = 3;
 const FUEL_DB_NAME = 'pulse-fuel';
 const FUEL_DB_VERSION = 1;
+const RECOVER_DB_NAME = 'pulse-recover';
+const RECOVER_DB_VERSION = 1;
 
 let db;
 
@@ -471,6 +473,96 @@ export async function clearFuelDB() {
 }
 
 
+// ── Pulse Recover — separate database ─────────────────────
+// recovery_logs live in `pulse-recover`, not the shared store: Recover is a
+// new domain and the shared `iron-log` DB must stay at DB_VERSION 3 for
+// Iron Log. One record per calendar day (keyPath 'date'), like water_logs.
+//   recovery_logs { date, sleepHours|null, soreness|null, restingHr|null, note, updatedAt }
+let recoverDB;
+
+export function openRecoverDB() {
+  return new Promise((resolve, reject) => {
+    if (recoverDB) return resolve(recoverDB);
+    const req = indexedDB.open(RECOVER_DB_NAME, RECOVER_DB_VERSION);
+
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('recovery_logs')) {
+        d.createObjectStore('recovery_logs', { keyPath: 'date' });
+      }
+    };
+
+    req.onsuccess = e => { recoverDB = e.target.result; resolve(recoverDB); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function recoverAll() {
+  return openRecoverDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction('recovery_logs').objectStore('recovery_logs').getAll();
+    req.onsuccess = e => res(e.target.result ?? []);
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+function recoverGet(date) {
+  return openRecoverDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction('recovery_logs').objectStore('recovery_logs').get(date);
+    req.onsuccess = e => res(e.target.result ?? null);
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+function recoverPut(value) {
+  return openRecoverDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction('recovery_logs', 'readwrite').objectStore('recovery_logs').put(value);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+function recoverDel(key) {
+  return openRecoverDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction('recovery_logs', 'readwrite').objectStore('recovery_logs').delete(key);
+    req.onsuccess = () => res();
+    req.onerror = e => rej(e.target.error);
+  }));
+}
+
+export async function getRecoveryLog(date) {
+  const row = await recoverGet(date);
+  return row ? normalizeRecoveryLog(row) : null;
+}
+
+export async function getRecoveryLogs() {
+  const rows = await recoverAll();
+  return rows.map(normalizeRecoveryLog).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function saveRecoveryLog(payload) {
+  const record = { ...normalizeRecoveryLog(payload), updatedAt: new Date().toISOString() };
+  const { ok, error } = validateRecoveryLog(record);
+  if (!ok) throw new Error(error);
+  await recoverPut(record);
+  notifyDirty('recovery_logs', record.date, 'put');
+  return record;
+}
+
+export async function deleteRecoveryLog(date) {
+  await recoverDel(date);
+  notifyDirty('recovery_logs', date, 'delete');
+}
+
+// Used by backup replace: wipe the Recover database (Pulse-owned).
+export async function clearRecoverDB() {
+  const db = await openRecoverDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction('recovery_logs', 'readwrite').objectStore('recovery_logs').clear();
+    req.onsuccess = () => res();
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
 // ── Raw access — used only by the sync engine ─────────────
 // No normalization, no stamping. The sync engine inspects and rewrites
 // records directly where LWW demands it.
@@ -496,4 +588,16 @@ export function syncFuelRawPut(storeName, value) {
 
 export function syncFuelRawDel(storeName, key) {
   return fuelDel(storeName, key);
+}
+
+export function syncRecoverRawAll() {
+  return recoverAll();
+}
+
+export function syncRecoverRawPut(value) {
+  return recoverPut(value);
+}
+
+export function syncRecoverRawDel(key) {
+  return recoverDel(key);
 }

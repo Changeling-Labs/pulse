@@ -13,8 +13,8 @@ const nowIso = '2026-11-05T12:00:00.000Z';
 const nowMs  = Date.parse(nowIso);
 const laterIso = '2026-11-06T12:00:00.000Z';
 
-test('domains are exactly the five we sync', () => {
-  assert.deepEqual(SYNC_DOMAINS, ['equipment', 'exercises', 'fuel_logs', 'water_logs', 'sets']);
+test('domains are exactly the six we sync', () => {
+  assert.deepEqual(SYNC_DOMAINS, ['equipment', 'exercises', 'fuel_logs', 'water_logs', 'recovery_logs', 'sets']);
   assert.ok(isDomain('sets'));
   assert.ok(!isDomain('preferences'));
 });
@@ -98,6 +98,12 @@ test('fuel_logs keep the uuid id; water_logs key by date', () => {
   const wRow = rowFor('water_logs', water, new Map());
   assert.equal(wRow.external_id, '2026-11-05');
   assert.equal(wRow.payload.glasses, 8);
+
+  const recovery = { date: '2026-11-05', sleepHours: 7.5, soreness: 3, restingHr: 56, note: '', updatedAt: nowIso };
+  const rRow = rowFor('recovery_logs', recovery, new Map());
+  assert.equal(rRow.external_id, '2026-11-05');
+  assert.equal(rRow.payload.sleepHours, 7.5);
+  assert.equal(rRow.payload.soreness, 3);
 });
 
 test('tombstones carry deleted_at and empty payload', () => {

@@ -38,8 +38,9 @@ import {
   openDB,
   syncRawAll, syncRawPut, syncRawDel,
   syncFuelRawAll, syncFuelRawPut, syncFuelRawDel,
+  syncRecoverRawAll, syncRecoverRawPut, syncRecoverRawDel,
 } from './db.js';
-import { normalizeExercise, normalizeSet, normalizeFuelLog, normalizeWaterLog } from './schema.js';
+import { normalizeExercise, normalizeSet, normalizeFuelLog, normalizeWaterLog, normalizeRecoveryLog } from './schema.js';
 
 const SYNC_DB = 'pulse-sync';
 const SYNC_DB_VERSION = 1;
@@ -287,6 +288,15 @@ export async function bootstrap() {
     }
   }
 
+  const recoveryLogs = await syncRecoverRawAll();
+  for (const r of recoveryLogs) {
+    if (!r.updatedAt) {
+      r.updatedAt = isoFromMs(updatedAtMs(r));
+      stamped++;
+      await syncRecoverRawPut(r);
+    }
+  }
+
   const equipment = await syncRawAll('equipment');
   for (const r of equipment) {
     if (!r.updatedAt) {
@@ -319,6 +329,8 @@ function localKeyFor(domain, record) {
       return record.id ? String(record.id) : null;
     case 'water_logs':
       return record.date ? String(record.date) : null;
+    case 'recovery_logs':
+      return record.date ? String(record.date) : null;
     case 'equipment':
       return 'equipment';
     default:
@@ -342,6 +354,10 @@ async function findLocal(domain, externalId) {
     }
     case 'water_logs': {
       const all = await syncFuelRawAll('water_logs');
+      return all.find(r => r.date === externalId) ?? null;
+    }
+    case 'recovery_logs': {
+      const all = await syncRecoverRawAll();
       return all.find(r => r.date === externalId) ?? null;
     }
     case 'equipment':
@@ -370,6 +386,9 @@ async function deleteLocal(domain, externalId) {
       await syncFuelRawDel('water_logs', externalId);
       return true;
     }
+    case 'recovery_logs':
+      await syncRecoverRawDel(externalId);
+      return true;
     case 'equipment':
       return false;             // equipment is never deleted remotely; LWW decides what lives locally
     default:
@@ -390,11 +409,12 @@ async function pushAll(lastPushAtIso, userId) {
     processedDirty.push(entry);
   }
 
-  const [rawExercises, rawSets, rawFuel, rawWater, rawEquipment] = await Promise.all([
+  const [rawExercises, rawSets, rawFuel, rawWater, rawRecover, rawEquipment] = await Promise.all([
     syncRawAll('exercises'),
     syncRawAll('sets'),
     syncFuelRawAll('fuel_logs'),
     syncFuelRawAll('water_logs'),
+    syncRecoverRawAll(),
     syncRawAll('equipment'),
   ]);
 
@@ -448,6 +468,13 @@ async function pushAll(lastPushAtIso, userId) {
     const localKey = `water_logs:${r.date}`;
     if (lastPush && updatedAtMs(r) <= lastPush && !dirtyPutKeys.has(localKey)) continue;
     summary.rows.push(rowFor('water_logs', r, exerciseMeta));
+  }
+
+  for (const r of rawRecover) {
+    if (!r.date) continue;
+    const localKey = `recovery_logs:${r.date}`;
+    if (lastPush && updatedAtMs(r) <= lastPush && !dirtyPutKeys.has(localKey)) continue;
+    summary.rows.push(rowFor('recovery_logs', r, exerciseMeta));
   }
 
   if (summary.rows.length === 0) return { pushed: 0, tombstones: 0, processedDirty };
@@ -585,6 +612,30 @@ async function pullAll() {
           }
         } else {
           await syncFuelRawPut('water_logs', body);
+          result.applied++;
+        }
+        continue;
+      }
+
+      if (row.domain === 'recovery_logs') {
+        const local = await findLocal('recovery_logs', row.external_id);
+        if (row.deleted_at) {
+          if (local) { await syncRecoverRawDel(row.external_id); result.deletes++; }
+          dirtyDelete('recovery_logs', row.external_id).catch(() => {});
+          continue;
+        }
+        if (!shouldApplyRemote('recovery_logs', row.external_id, dirtyKeys)) { result.skippedLocalWins++; continue; }
+        const body = {
+          ...normalizeRecoveryLog({ ...row.payload, date: row.external_id }),
+          updatedAt: row.updated_at,
+        };
+        if (local) {
+          if (pickLWW(local, row) === 'remote') {
+            await syncRecoverRawPut(body);
+            result.applied++;
+          }
+        } else {
+          await syncRecoverRawPut(body);
           result.applied++;
         }
         continue;

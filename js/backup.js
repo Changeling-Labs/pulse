@@ -1,16 +1,17 @@
-import { openDB, getExercises, getSets, getEquipment, getFuelLogs, getWaterLogs, clearFuelDB, addFuelLog, setWaterGlasses } from './db.js';
+import { openDB, getExercises, getSets, getEquipment, getFuelLogs, getWaterLogs, clearFuelDB, addFuelLog, setWaterGlasses, getRecoveryLogs, saveRecoveryLog, clearRecoverDB } from './db.js';
 import { VERSION } from './version.js';
 import { BACKUP_VERSION, migrateBackup, normalizeExercise } from './schema.js';
 import { localDateStr } from './dates.js';
 
 // ── Export ─────────────────────────────────────────────────
 export async function exportBackup() {
-  const [exercises, sets, equipment, fuelLogs, waterLogs] = await Promise.all([
+  const [exercises, sets, equipment, fuelLogs, waterLogs, recoveryLogs] = await Promise.all([
     getExercises(),
     getSets(),        // already normalized to the current set schema
     getEquipment(),
     getFuelLogs(),    // pulse-fuel DB
     getWaterLogs(),
+    getRecoveryLogs(),// pulse-recover DB
   ]);
 
   const backup = {
@@ -21,6 +22,7 @@ export async function exportBackup() {
     sets,
     fuelLogs,
     waterLogs,
+    recoveryLogs,
     equipment,
   };
 
@@ -87,6 +89,7 @@ async function applyBackup(data, mode) {
     await clearStore(db, 'sets');
     await clearStore(db, 'equipment');
     await clearFuelDB();
+    await clearRecoverDB();
   }
 
   if (mode === 'replace') {
@@ -143,6 +146,14 @@ async function applyBackup(data, mode) {
   }
   if (Array.isArray(data.waterLogs)) {
     for (const log of data.waterLogs) await setWaterGlasses(log.date, log.glasses);
+  }
+
+  // Recover check-ins restore into `pulse-recover`, keyed by date, so a
+  // merge re-import overwrites the same day rather than duplicating it.
+  if (Array.isArray(data.recoveryLogs)) {
+    for (const log of data.recoveryLogs) {
+      try { await saveRecoveryLog(log); } catch { /* skip empty/invalid legacy rows */ }
+    }
   }
 }
 

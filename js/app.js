@@ -10,6 +10,7 @@ import './modules/move/prs.js';
 import './modules/move/planner.js';
 import './modules/move/intervals.js';
 import './modules/fuel/fuel.js';
+import './modules/recover/recover.js';
 import './modules/settings.js';
 
 // Never let sync wiring break the app: a sync failure must degrade to local-only mode.

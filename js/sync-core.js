@@ -6,9 +6,9 @@
 // payloads, so two devices that received the same two candidate records always
 // converge on the same winner. Deletes travel as tombstones (`deleted_at`).
 
-import { normalizeSet, normalizeExercise, normalizeFuelLog, normalizeWaterLog } from './schema.js';
+import { normalizeSet, normalizeExercise, normalizeFuelLog, normalizeWaterLog, normalizeRecoveryLog } from './schema.js';
 
-export const SYNC_DOMAINS = ['equipment', 'exercises', 'fuel_logs', 'water_logs', 'sets'];
+export const SYNC_DOMAINS = ['equipment', 'exercises', 'fuel_logs', 'water_logs', 'recovery_logs', 'sets'];
 export const SYNC_TABLE = 'sync_rows';
 export const TOMBSTONE_DELETED_AT = null;
 
@@ -100,6 +100,8 @@ export function payloadFor(domain, record, exerciseSync = new Map()) {
       const { ...rest } = normalizeWaterLog(record);
       return { ...rest };
     }
+    case 'recovery_logs':
+      return { ...normalizeRecoveryLog(record) };   // keyed by date, like water
     default:
       throw new Error('Unknown sync domain: ' + domain);
   }
@@ -115,6 +117,8 @@ export function externalIdFor(domain, record) {
       return normalizeFuelLog(record).id;
     case 'water_logs':
       return normalizeWaterLog(record).date;
+    case 'recovery_logs':
+      return normalizeRecoveryLog(record).date;
     case 'equipment':
       return 'equipment';
     default:

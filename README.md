@@ -58,7 +58,7 @@ Pulse is built as a **Local-First Micro-Kernel**. The client-side database (Inde
 2. **Zero-Cost Backend:** Local-first sync architecture (IndexedDB + optional encrypted Supabase background sync), keeping infrastructure costs near zero.
 3. **Data Sovereignty:** Full JSON/CSV data export and import. Your health data remains yours forever.
 
-> **Two databases.** Pulse Move records live in the *shared* `iron-log` store (see Data model) — open at `DB_VERSION = 3` forever. Pulse **Fuel** logs live in their own `pulse-fuel` database (version 1), because Fuel needs new object stores and the shared store must not change. Both are exported/imported by the backup system.
+> **One database per domain.** Pulse Move records live in the *shared* `iron-log` store (see Data model) — open at `DB_VERSION = 3` forever. Pulse **Fuel** logs live in their own `pulse-fuel` database (version 1) and Pulse **Recover** check-ins in `pulse-recover` (version 1), because both need new object stores and the shared store must not change. All three are exported/imported by the backup system.
 
 ## 🗺️ Product Roadmap & Developer Execution Plan
 
@@ -86,7 +86,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 ### Phase 4: Pulse RECOVER — Mobility & Rest Protocols (Q2 2027) 📅
 
 - [x] **Step 4.1: Guided Stretching & Timed Protocols (v2.7.0)** — `js/intervals.js` (pure, tested) builds EMOM, Tabata, 30/30, 40/20 and custom work/rest plans plus static-hold mobility routines; `js/modules/move/intervals.js` runs them full-screen with phase cues (audio + haptics), pause/skip/end, screen wake lock and a last-session summary.
-- [ ] **Step 4.2: Recovery & Fatigue Tracking** — `recovery_logs` store for daily sleep duration, subjective soreness, resting heart rate.
+- [x] **Step 4.2: Recovery & Fatigue Tracking (v2.8.0)** — `recovery_logs` in a dedicated `pulse-recover` database (one check-in per local day: sleep, soreness 1–10, resting HR, notes); a **Recover** tab with a daily check-in card, 7/30-day averages and deltas, per-metric trend bars and editable history; `js/recover.js` (pure, tested) owns the date windows and stats. Backups carry `recoveryLogs`, and check-ins sync as a sixth domain.
 
 ### Phase 5: Holistic Health Insights & Integrations (Q3 2027) 📅
 
@@ -120,9 +120,10 @@ pulse/
                     # intervals.js (EMOM/Tabata/holds runner), prs.js, planner.js,
                     # shared.js (exercise helpers)
       fuel/         # fuel.js — Fuel tab + portion modal
+      recover/      # recover.js — Recover check-in, trends, history
       settings.js   # Settings tab
-    db.js           # IndexedDB layer (shared `iron-log` store + `pulse-fuel` DB)
-    schema.js       # Set/exercise/fuel schema, validation, backup migration
+    db.js           # IndexedDB layer (shared `iron-log` store + `pulse-fuel` / `pulse-recover` DBs)
+    schema.js       # Set/exercise/fuel/recovery schema, validation, backup migration
     circuits.js     # Circuit grouping (supersets)
     timer.js        # Rest countdown model
     intervals.js    # Interval/hold plan model (EMOM, Tabata, mobility)
@@ -130,9 +131,10 @@ pulse/
     dates.js        # Local calendar-day helpers
     calc.js         # Plate calculator + session plan
     confetti.js     # Set completion celebration
-    backup.js       # JSON export/import (exercises, sets, fuel, water, equipment)
+    backup.js       # JSON export/import (exercises, sets, fuel, water, recovery, equipment)
     pr.js           # Dynamic PR engine (bests per metric)
     fuel.js         # Pulse Fuel logic (hand portions, myth cards)
+    recover.js      # Pulse Recover logic (date windows, averages, deltas)
     version.js      # Version string
   test/             # Node built-in test runner
   icons/            # App icons
@@ -168,6 +170,20 @@ An exercise can declare several metrics at once — e.g. a **Rowing** exercise w
 
 Water is one row per day in `water_logs` (`{ date, glasses }`). Hydration is deliberately not a fuel entry.
 
+**Recover.** One check-in per local calendar day in the `pulse-recover` database (`recovery_logs`, keyPath `date`):
+
+```json
+{
+  "date": "2026-11-06",
+  "sleepHours": 7.5,
+  "soreness": 4,
+  "restingHr": 58,
+  "note": "slept through, calves a little tight"
+}
+```
+
+Any metric may be `null` — a sleep-only or note-only check-in is valid, but a completely empty row is rejected so the form can't store noise. Sleep is clamped to 0–24 h and rounded to the nearest quarter hour; soreness is a whole number 1–10; resting HR is a whole number 30–220 bpm. Averages and trend lines ignore missing values rather than treating them as zero.
+
 > **Shared database with Iron Log.** Pulse keeps the IndexedDB name `iron-log` for Move data, so existing Iron Log clients keep their history. Iron Log opens that store at `DB_VERSION = 3`, so **Pulse must never bump `DB_VERSION`** — Move record changes are additive and lazy-stamped at boot (`migrateExerciseMetrics` in `js/db.js`). Fuel data needs new stores, so it lives in the separate `pulse-fuel` database. If a shared-store upgrade is ever unavoidable, Iron Log upgrades first.
 >
 > **Origin matters.** `edmundashdown.github.io` and `changelinglabs.com` serve this app from two different origins, and browser storage is origin-scoped: history logged on one never appears on the other. Pick one and stay on it; `Export` → `Import` moves your data across origins.
@@ -188,9 +204,15 @@ The **Intervals** card on the Log tab launches four built-in protocols — Tabat
 
 The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A science-backed **Myth Buster** card rotates daily; "Show me another" pulls a random one.
 
+### Pulse Recover
+
+The **Recover** tab is a daily check-in: sleep last night (stepper, quarter-hour steps), soreness (1–10 chips from *Fresh* to *Wrecked*) and resting HR on waking, plus a free-text note. Any single metric is enough to save. Below the form, a 7-day or 30-day **snapshot** shows averages with deltas against the previous window of the same length, how many days you actually checked in, and how many nights fell under 7 h; **trend bars** plot each metric with fixed ranges (a flat week stays flat instead of stretching), and **Recent check-ins** lets you edit or delete an earlier day — the form switches between "today" and "editing".
+
+Recover is a *signal*, not a diagnosis: it never scores you or tells you to train less, it just surfaces whether sleep, soreness and resting HR are moving. The date windows, averages, deltas and bar maths live in `js/recover.js` (pure and unit-tested); the tab is `js/modules/recover/recover.js`.
+
 ### Backup compatibility
 
-`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes both apps' Move history on whichever origin you're on** — export first.
+`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `recoveryLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel/recovery arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes all local history on whichever origin you're on** — export first.
 
 ## Cloud Sync (v2.5.0, opt-in, background)
 
@@ -199,7 +221,7 @@ Pulse is local-first: without a signed-in user, zero network traffic occurs and 
 - **Off by default.** Signing in sends nothing by itself; sync runs on the user's terms after that (auto on every save, tab-visible reopen, and network reconnect — plus manual **Sync now**). Nothing is ever pushed before a sign-in.
 - **Design:** one table (`sync_rows` in Pulse's Supabase project) carries every data domain; each row is one JSON delta of one record. Row-level security isolates every user's rows. The client ships only the _publishable_ key. There is no server-side data model — no schema to keep in sync, no passwords anywhere near the app.
 - **Conflict resolution:** last-writer-wins per record (`updated_at`), with a deterministic payload-byte tiebreak on exact timestamp equality. Deletes propagate as tombstones.
-- **Identity:** IndexedDB ids are device-local, so each synced record carries a stable `syncId` (UUID) stamped **additively** at write time; the shared `iron-log` DB is never version-bumped and Iron Log never sees the sync. Fuel ids were already UUIDs; water logs key by date.
+- **Identity:** IndexedDB ids are device-local, so each synced record carries a stable `syncId` (UUID) stamped **additively** at write time; the shared `iron-log` DB is never version-bumped and Iron Log never sees the sync. Fuel ids were already UUIDs; water and recovery logs key by date.
 - **Sign-in:** magic link (passwordless). The `pulse-sync-auth` session persists per origin in `localStorage`.
 
 Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add the redirect URLs — production and a local verification port).
@@ -209,7 +231,7 @@ Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add 
 
 ## Testing
 
-Schema, migration, date, circuit-grouping, timer, PR and fuel logic is covered by Node's built-in test runner (no dependencies):
+Schema, migration, date, circuit-grouping, timer, PR, fuel and recovery logic is covered by Node's built-in test runner (no dependencies):
 
 ```bash
 npm test
