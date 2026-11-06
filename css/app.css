@@ -1446,3 +1446,77 @@ body.interval-active { overflow: hidden; }
 .recover-history-del:hover { color: var(--red); }
 
 .recover-empty { font-size: 12px; color: var(--text-3); padding: 2px 0 4px; }
+
+/* ── Training ↔ recovery insights ─────────────────────── */
+.insight-head,
+.insight-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.insight-head {
+  margin-top: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.insight-col {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  text-align: right;
+  line-height: 1.35;
+}
+
+.insight-col small {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-3);
+  opacity: 0.8;
+}
+
+.insight-row { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.insight-row:last-of-type { border-bottom: none; }
+
+.insight-metric {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.insight-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--glow);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-lines { margin-top: 10px; }
+
+.insight-lines p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.insight-lines p:last-child { margin-bottom: 0; }
+
+.insight-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-3);
+}

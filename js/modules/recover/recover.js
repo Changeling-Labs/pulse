@@ -5,11 +5,12 @@
 
 import { renderTab, registerTab } from '../../kernel/shell.js';
 import { fmtDate, todayStr } from '../../kernel/helpers.js';
-import { getRecoveryLog, getRecoveryLogs, saveRecoveryLog, deleteRecoveryLog } from '../../db.js';
+import { getRecoveryLog, getRecoveryLogs, saveRecoveryLog, deleteRecoveryLog, getSets } from '../../db.js';
 import {
   seriesFor, periodStats, comparePeriods, sorenessLabel, severity,
   barFraction, formatMetric, describeDelta, METRICS,
 } from '../../recover.js';
+import { buildInsight } from '../../insights.js';
 
 let windowDays = 7;
 let editingDate = null;      // null = today
@@ -169,6 +170,57 @@ function trendsCard(logs, today) {
     </div>`;
 }
 
+// ── Training ↔ recovery ────────────────────────────────────
+// Descriptive only: how recovery markers looked in heavier vs lighter
+// weeks. No score, no prediction, no advice — see js/insights.js.
+function insightRow(label, key, high, low) {
+  return `
+    <div class="insight-row">
+      <span class="insight-metric">${label}</span>
+      <span class="insight-val">${formatMetric(key, high)}</span>
+      <span class="insight-val">${formatMetric(key, low)}</span>
+    </div>`;
+}
+
+function insightsCard(sets, logs, today) {
+  const insight = buildInsight(sets, logs, { weeks: 12, endDate: today });
+
+  if (!insight.ok) {
+    const hint = Number.isFinite(insight.weeksNeeded)
+      ? `${insight.weeksNeeded} more week${insight.weeksNeeded === 1 ? '' : 's'} to go.`
+      : 'Keep logging sets and check-ins.';
+    return `
+      <div class="card">
+        <div class="card-label">Training ↔ recovery</div>
+        <div class="recover-empty">${esc(insight.reason)}<br>${esc(hint)}</div>
+      </div>`;
+  }
+
+  const rows = [
+    ['Soreness', 'soreness', insight.high.sorenessAvg, insight.low.sorenessAvg],
+    ['Sleep', 'sleepHours', insight.high.sleepAvg, insight.low.sleepAvg],
+    ['Resting HR', 'restingHr', insight.high.restingHrAvg, insight.low.restingHrAvg],
+  ].filter(([, , high, low]) => Number.isFinite(high) || Number.isFinite(low));
+
+  return `
+    <div class="card">
+      <div class="card-label">Training ↔ recovery</div>
+      <div class="insight-head">
+        <span></span>
+        <span class="insight-col">Heavier weeks<small>${insight.high.setsAvg} sets/wk</small></span>
+        <span class="insight-col">Lighter weeks<small>${insight.low.setsAvg} sets/wk</small></span>
+      </div>
+      ${rows.map(([label, key, high, low]) => insightRow(label, key, high, low)).join('')}
+      <div class="insight-lines">
+        ${insight.lines.map(line => `<p>${esc(line)}</p>`).join('')}
+      </div>
+      <div class="insight-foot">
+        Based on ${insight.eligible.length} completed weeks with both training and a check-in.
+        Association only — recovery has many other inputs.
+      </div>
+    </div>`;
+}
+
 // ── History ────────────────────────────────────────────────
 function historyRow(log) {
   const parts = [
@@ -208,7 +260,11 @@ function historyCard(logs) {
 async function renderRecover(el) {
   const today = todayStr();
   const date = editingDate ?? today;
-  const [logs, existing] = await Promise.all([getRecoveryLogs(), getRecoveryLog(date)]);
+  const [logs, existing, sets] = await Promise.all([
+    getRecoveryLogs(),
+    getRecoveryLog(date),
+    getSets(),          // read-only, for the training ↔ recovery card
+  ]);
 
   draft = {
     date,
@@ -222,6 +278,7 @@ async function renderRecover(el) {
     ${checkinCard(dateLabel(date), date === today)}
     ${summaryCard(logs, today)}
     ${trendsCard(logs, today)}
+    ${insightsCard(sets, logs, today)}
     ${historyCard(logs)}`;
 
   // The saved banner belongs to one render only.

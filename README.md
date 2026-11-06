@@ -90,7 +90,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 
 ### Phase 5: Holistic Health Insights & Integrations (Q3 2027) 📅
 
-- [ ] Cardiovascular & Metabolic Analytics: automated trend lines correlating movement volume, recovery markers, and metabolic consistency.
+- [x] **Step 5.1: Training ↔ Recovery Insights (v2.9.0)** — `js/insights.js` (pure, tested) buckets training into completed Monday–Sunday weeks, splits them at the median weekly set count, and compares sleep, soreness and resting HR between heavier and lighter weeks. It also reports Pearson correlations and one plain-language readout. Deliberately descriptive: no readiness score, no prediction, no advice.
 - [ ] Integrations & Export: open export paths for Obsidian, Notion, Apple Health, and Strava.
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -135,6 +135,7 @@ pulse/
     pr.js           # Dynamic PR engine (bests per metric)
     fuel.js         # Pulse Fuel logic (hand portions, myth cards)
     recover.js      # Pulse Recover logic (date windows, averages, deltas)
+    insights.js     # Training volume ↔ recovery comparison (descriptive)
     version.js      # Version string
   test/             # Node built-in test runner
   icons/            # App icons
@@ -210,6 +211,8 @@ The **Recover** tab is a daily check-in: sleep last night (stepper, quarter-hour
 
 Recover is a *signal*, not a diagnosis: it never scores you or tells you to train less, it just surfaces whether sleep, soreness and resting HR are moving. The date windows, averages, deltas and bar maths live in `js/recover.js` (pure and unit-tested); the tab is `js/modules/recover/recover.js`.
 
+Below the trends, **Training ↔ recovery** compares your completed weeks by training volume. Weeks are split at the median weekly *set* count (a hard calisthenics week counts the same as a heavy barbell week; tonnage is shown only where weight × reps exists), then sleep, soreness and resting HR are averaged for the heavier and lighter halves. When there are enough paired weeks, it also shows a Pearson correlation and one plain-language line. It refuses to draw a conclusion from fewer than four eligible weeks, and it always says the quiet part out loud: association only — recovery has many other inputs. Logic lives in `js/insights.js` (pure and unit-tested); no new database, no sync domain, no network.
+
 ### Backup compatibility
 
 `js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `recoveryLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel/recovery arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes all local history on whichever origin you're on** — export first.
@@ -231,7 +234,7 @@ Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add 
 
 ## Testing
 
-Schema, migration, date, circuit-grouping, timer, PR, fuel and recovery logic is covered by Node's built-in test runner (no dependencies):
+Schema, migration, date, circuit-grouping, timer, PR, fuel, recovery and insight logic is covered by Node's built-in test runner (no dependencies):
 
 ```bash
 npm test
