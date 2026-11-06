@@ -7,6 +7,7 @@
 import { state } from '../../kernel/shell.js';
 import { setPref } from '../../db.js';
 import { newTimer, tick as tickTimer, extend as extendTimer, pause as pauseTimer, resume as resumeTimer, progress as timerProgress, formatClock, nextRound } from '../../timer.js';
+import { primeAudio, beep, vibrate } from '../../cues.js';
 
 // ── Rest timer ─────────────────────────────────────────────
 // Counts down between sets. The model lives in js/timer.js; this section
@@ -34,33 +35,12 @@ const CIRCUIT_REST_OPTIONS = [
 let restTimer = null;        // timer state, or null when there is no rest running
 let restInterval = null;
 let restLastTick = 0;
-let audioCtx = null;
 
-// Browsers only allow audio after a gesture, so create the context from the
-// click that starts the rest (not from the tick that finishes it).
-function primeAudio() {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return;
-  if (!audioCtx) audioCtx = new Ctx();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-}
-
-function beep() {
-  if (!audioCtx) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = 880;
-  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.4);
-}
-
+// Audio context is primed from the starting gesture (see cues.js); the tick
+// that finishes a countdown is not a gesture, so it cannot unlock audio.
 function restFinished() {
-  try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
-  try { beep(); } catch { /* audio blocked */ }
+  vibrate([200, 100, 200]);
+  beep({ freq: 880, duration: 0.4, gain: 0.12 });
 }
 
 function startRestLoop() {

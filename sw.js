@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v11';
+const CACHE = 'pulse-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/modules/move/timer.js',
   './js/modules/move/prs.js',
   './js/modules/move/planner.js',
+  './js/modules/move/intervals.js',
   './js/modules/fuel/fuel.js',
   './js/modules/settings.js',
   './js/pr.js',
@@ -21,6 +22,8 @@ const ASSETS = [
   './js/dates.js',
   './js/circuits.js',
   './js/timer.js',
+  './js/intervals.js',
+  './js/cues.js',
   './js/calc.js',
   './js/confetti.js',
   './js/backup.js',

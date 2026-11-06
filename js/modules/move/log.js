@@ -1,8 +1,10 @@
 // ── Pulse Move: Log tab ──────────────────────────────────
 import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { dw, fmtDate, todayStr, fmtDuration, sinceDate } from '../../kernel/helpers.js';
-import { getSets, getAllPRs, deleteSet, deleteSetsByGroup } from '../../db.js';
+import { getSets, getAllPRs, deleteSet, deleteSetsByGroup, getPref } from '../../db.js';
 import { groupByCircuit } from '../../circuits.js';
+import { PRESETS, HOLD_ROUTINES } from '../../intervals.js';
+import { formatClock } from '../../timer.js';
 import { openLogModal } from './modal.js';
 import { displayDistance } from '../../calc.js';
 
@@ -25,6 +27,50 @@ function setPrimary(s) {
   return '';
 }
 
+
+// ── Intervals card ─────────────────────────────────────────
+// The runner itself lives in ./intervals.js; this card is the entry point.
+function lastRunLine(last) {
+  if (!last) return 'No interval session yet — pick a protocol above.';
+  const load = formatClock((last.workSec ?? 0) * 1000);
+  const efforts = `${last.rounds ?? 0} effort${(last.rounds ?? 0) === 1 ? '' : 's'}`;
+  const day = last.at ? new Date(last.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+  return `Last: ${last.name} · ${efforts} · ${load} under load${day ? ` · ${day}` : ''}`;
+}
+
+async function intervalCardHtml() {
+  const last = await getPref('intervalLast', null);
+  return `
+    <div class="card interval-card">
+      <div class="card-head">
+        <div class="card-label" style="margin-bottom:0">Intervals</div>
+        <button class="btn btn-ghost rest-start" onclick="startCustomInterval()">Custom</button>
+      </div>
+      <div class="interval-presets">
+        ${PRESETS.map(p => `
+          <button type="button" class="interval-preset" onclick="startIntervalPreset('${p.id}')">
+            <span class="interval-preset-name">${p.name}</span>
+            <span class="interval-preset-hint">${p.hint}</span>
+          </button>`).join('')}
+      </div>
+      <div class="interval-holds">
+        <span class="interval-holds-label">Mobility holds</span>
+        ${HOLD_ROUTINES.map(r => `
+          <button type="button" class="interval-hold" onclick="startHoldRoutine('${r.id}')">
+            ${r.name}<span>${r.hint}</span>
+          </button>`).join('')}
+      </div>
+      <div class="interval-last" id="interval-last">${lastRunLine(last)}</div>
+    </div>`;
+}
+
+// Called by the runner when a session closes, so the card reflects it
+// without a full tab re-render (which would drop scroll position).
+window.refreshIntervalCard = async function() {
+  const el = document.getElementById('interval-last');
+  if (!el) return;
+  el.textContent = lastRunLine(await getPref('intervalLast', null));
+};
 
 // ── Log Tab ────────────────────────────────────────────────
 async function renderLog(el) {
@@ -54,6 +100,7 @@ async function renderLog(el) {
       <div class="stat"><div class="stat-val">${new Set(todaySets.map(s => s.exerciseId)).size}</div><div class="stat-lbl">exercises</div></div>
       <div class="stat"><div class="stat-val accent">${prCount}</div><div class="stat-lbl">PRs today</div></div>
     </div>
+    ${await intervalCardHtml()}
     <div class="card">
       <div class="card-head">
         <div class="card-label">Today · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>

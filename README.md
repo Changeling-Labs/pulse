@@ -31,7 +31,7 @@ Global Annual Mortality by Primary Cause (Millions)
 
 - **Name:** **Pulse** (Sub-modules: *Pulse Move*, *Pulse Fuel*, *Pulse Recover*)
 - **Tagline:** _Engineered for Healthspan._
-- **Aesthetic Direction:** Industrial Minimalist. Charcoal background (`#121212`), high-contrast clinical typography, warm emergency accents (crimson/amber indicators for strain/fatigue), and zero decorative bloat.
+- **Aesthetic Direction:** Industrial Minimalist, in the Changeling Labs palette — Deep Navy background (`#0B111E`), Electric Deep Blue (`#0056D2`) for actions, Glowing Turquoise (`#00F5FF`) for live/accent information, Barlow Condensed display type over Inter. Contrast is a requirement, not a preference: every label tier clears WCAG AA on its own surface.
 - **Core Ethos:** Local-first data ownership, instant response times, zero tracking scripts, no paywalls.
 
 ## 🏗️ Architecture & Core Principles
@@ -81,11 +81,11 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 ### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 🚧
 
 - [x] **Step 3.1: Kernel Extraction (v2.3.0)** — `app.js` is now a 13-line entry; kernel owns state/routing/boot (`js/kernel/shell.js`), shared helpers (`js/kernel/helpers.js`); Move lives in `js/modules/move/`, Fuel in `js/modules/fuel/`, Settings in `js/modules/settings.js`. No build step, zero behavior change.
-- [ ] **Step 3.2: Local-First Supabase Sync Engine** — Optional Supabase Auth; a local-first `sync_queue` in IndexedDB pushing row-level JSON deltas when online, queuing offline.
+- [x] **Step 3.2: Local-First Supabase Sync Engine (v2.4.0 → v2.5.0)** — Optional magic-link auth; `sync_rows` table with row-level security; local-first `pulse-sync.dirty` queue; last-write-wins with a payload tiebreak; background auto-sync on save/visibility/reconnect. See **Cloud Sync** below.
 
 ### Phase 4: Pulse RECOVER — Mobility & Rest Protocols (Q2 2027) 📅
 
-- [ ] **Step 4.1: Guided Stretching & Timed Protocols** — Extend `js/timer.js` for multi-step mobility routines, EMOM/Tabata protocols.
+- [x] **Step 4.1: Guided Stretching & Timed Protocols (v2.7.0)** — `js/intervals.js` (pure, tested) builds EMOM, Tabata, 30/30, 40/20 and custom work/rest plans plus static-hold mobility routines; `js/modules/move/intervals.js` runs them full-screen with phase cues (audio + haptics), pause/skip/end, screen wake lock and a last-session summary.
 - [ ] **Step 4.2: Recovery & Fatigue Tracking** — `recovery_logs` store for daily sleep duration, subjective soreness, resting heart rate.
 
 ### Phase 5: Holistic Health Insights & Integrations (Q3 2027) 📅
@@ -117,13 +117,16 @@ pulse/
       helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
     modules/
       move/         # log.js, modal.js (log modal + circuits), timer.js (rest bar),
-                    # prs.js, planner.js, shared.js (exercise helpers)
+                    # intervals.js (EMOM/Tabata/holds runner), prs.js, planner.js,
+                    # shared.js (exercise helpers)
       fuel/         # fuel.js — Fuel tab + portion modal
       settings.js   # Settings tab
     db.js           # IndexedDB layer (shared `iron-log` store + `pulse-fuel` DB)
     schema.js       # Set/exercise/fuel schema, validation, backup migration
     circuits.js     # Circuit grouping (supersets)
     timer.js        # Rest countdown model
+    intervals.js    # Interval/hold plan model (EMOM, Tabata, mobility)
+    cues.js         # Shared beeps + vibration patterns
     dates.js        # Local calendar-day helpers
     calc.js         # Plate calculator + session plan
     confetti.js     # Set completion celebration
@@ -176,6 +179,10 @@ The Log modal has a **Circuit** mode: pick two or more exercises, set a round co
 ### Rest timer
 
 Saving a set starts a countdown bar above the bottom nav (default 90s). The countdown model in `js/timer.js` is pure and unit-tested; `js/app.js` owns the interval, the beep, and the bar. Circuits can override the rest between rounds.
+
+### Intervals & mobility holds
+
+The **Intervals** card on the Log tab launches four built-in protocols — Tabata (20/10 × 8), EMOM 10 (40/20), 30/30 and 40/20 — plus a custom work/rest/rounds builder and two static-hold routines (lower body, upper body). The plan model lives in `js/intervals.js` (pure and unit-tested): it flattens a session into prep/work/rest/hold blocks, drops the trailing rest, and advances by real elapsed time, so a throttled background tab catches up instead of drifting. The runner (`js/modules/move/intervals.js`) is a full-screen panel with distinct cues per phase (shared with the rest timer through `js/cues.js`), pause/skip/end, a screen wake lock, and a "last session" line remembered as a device preference. Intervals deliberately do **not** write sets — they are a pacing tool, not a logged lift.
 
 ### Pulse Fuel
 
