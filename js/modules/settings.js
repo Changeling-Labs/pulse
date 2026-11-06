@@ -5,7 +5,7 @@ import { exportBackup, importBackup } from '../backup.js';
 import { SET_TYPES, METRIC_LABELS } from '../schema.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { REST_OPTIONS } from './move/timer.js';
-import { getSyncStatus, sendMagicLink, signOutSync, syncNow } from '../sync.js';
+import { getSyncStatus, sendMagicLink, signOutSync, syncNow, resetCloudToLocal } from '../sync.js';
 
 function syncCardHtml(status) {
   if (status.signedIn) {
@@ -27,6 +27,19 @@ function syncCardHtml(status) {
         <div class="setting-sub">The session leaves this device; your cloud rows stay until you delete the project from Supabase.</div>
       </div>
       <button class="btn btn-ghost" onclick="signOutPulseSync()">Sign out</button>
+    </div>
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label">Automatic sync</div>
+        <div class="setting-sub">On — Pulse pushes after every save, when this tab reopens, and when your connection returns. Nothing leaves before you sign in.</div>
+      </div>
+    </div>
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label" style="color:#f87171">Reset cloud to match this device</div>
+        <div class="setting-sub">Deletes every row Pulse has stored for you in Supabase, then re-uploads what's on this device. Use this after restoring a backup. No undo.</div>
+      </div>
+      <button class="btn btn-ghost" style="color:#f87171;border-color:#f8717144;white-space:nowrap" onclick="resetCloudPulse()">Reset</button>
     </div>
     <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>`;
   }
@@ -249,6 +262,22 @@ window.syncPulseNow = async function() {
   } catch (e) {
     const status = await updateSyncCard();
     if (status) status.textContent = `Sync failed: ${e?.message ?? e}`;
+  }
+};
+
+window.resetCloudPulse = async function() {
+  const ok = confirm('Reset cloud sync to match this device?\n\nEvery row Pulse has stored for you in Supabase will be deleted, then re-uploaded from this device. This cannot be undone.');
+  if (!ok) return;
+  const card = document.getElementById('sync-card');
+  if (card) card.innerHTML = '<div class="setting-row"><div class="setting-sub">Resetting…</div></div>';
+  try {
+    const reset = await resetCloudToLocal();
+    const sync = await syncNow();
+    const status = await updateSyncCard();
+    if (status) status.textContent = `Cloud reset — deleted ${reset.deleted}, re-pushed ${sync.pushed}.`;
+  } catch (e) {
+    const status = await updateSyncCard();
+    if (status) status.textContent = `Reset failed: ${e?.message ?? e}`;
   }
 };
 

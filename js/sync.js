@@ -20,7 +20,12 @@
 // Deletes travel as tombstones (deleted_at). No echo: rows applied from a
 // pull are never re-marked dirty.
 //
-// v2.4.0 scope: manual "Sync now" in Settings; opt-in, off by default.
+// v2.5.0 scope: background auto-sync. When signed in, sync runs on every
+// mutation (debounced), when the tab regains visibility and on network
+// reconnect — still opt-in, still nothing leaves the device before sign-in.
+// Settings also exposes a danger-zone "Reset cloud to match this device",
+// which deletes every remote row and re-uploads local state (backup restore).
+// v2.4.x: manual "Sync now" remains available.
 
 import {
   SYNC_DOMAINS, rowFor, tombstoneFor, validateRow, pickLWW, resolveExerciseRow,
@@ -41,6 +46,40 @@ const SYNC_DB_VERSION = 1;
 const TABLE = 'sync_rows';
 const nowMs = () => Date.now();
 const nowIso = () => new Date().toISOString();
+
+// ── v2.5.0 automatic sync ──────────────────────────────────
+const AUTO_SYNC_DEBOUNCE_MS = 2500;
+let syncInFlight = null;
+let autoSyncTimer = null;
+let listenersRegistered = false;
+
+async function autoSyncIfEligible() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const status = await getSyncStatus();
+    if (!status.signedIn) return;               // opt-in: no session, no traffic, ever
+    await syncNow();
+  } catch (err) {
+    // syncNow records lastError; keep the automatic path silent in the console.
+    console.warn('auto sync failed (will retry later):', err);
+  }
+}
+
+function scheduleAutoSync() {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(() => { autoSyncTimer = null; autoSyncIfEligible(); }, AUTO_SYNC_DEBOUNCE_MS);
+}
+
+function registerAutoSyncListeners() {
+  if (typeof document === 'undefined' || listenersRegistered) return;
+  listenersRegistered = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') scheduleAutoSync();
+  });
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => scheduleAutoSync());
+  }
+}
 
 // ── pulse-sync database ────────────────────────────────────
 let syncDBHandle;
@@ -118,6 +157,16 @@ function dirtyAll() {
   }));
 }
 
+function dirtyClearAll() {
+  return openSyncDB().then(() => new Promise((res, rej) => {
+    const t = syncDBHandle.transaction('dirty', 'readwrite');
+    t.objectStore('dirty').clear();
+    t.oncomplete = () => res();
+    t.onerror = e => rej(e.target.error);
+    t.onabort = e => rej(e.target.error);
+  }));
+}
+
 // ── supabase client ────────────────────────────────────────
 let clientHandle = null;
 
@@ -147,8 +196,10 @@ export async function initSync() {
     document.addEventListener('pulse:dirty', e => {
       const { domain, externalId, op } = e.detail ?? {};
       if (!domain || !externalId) return;
+      scheduleAutoSync();
       dirtyAdd(domain, externalId, op).catch(err => console.warn('pulse:dirty queue failed', err));
     });
+    registerAutoSyncListeners();
   }
 }
 
@@ -593,6 +644,12 @@ async function resolveExerciseBySync(exerciseMeta, rawExercises, syncId, name) {
 
 // ── sync now ───────────────────────────────────────────────
 export async function syncNow() {
+  if (syncInFlight) return syncInFlight;          // one sync at a time, ever
+  syncInFlight = _syncNow().finally(() => { syncInFlight = null; });
+  return syncInFlight;
+}
+
+async function _syncNow() {
   const { data: { session } } = await supabaseClient().auth.getSession();
   if (!session) throw new Error('Sign in with the magic link first.');
 
@@ -618,4 +675,26 @@ export async function syncNow() {
     await kvSet('lastError', message);
     throw err;
   }
+}
+
+// ── Reset cloud to match this device ─────────────────────
+// Escape hatch for backup restore: deletes every remote row this account
+// has, clears the push watermark and the dirty queue, so the next syncNow
+// re-uploads everything currently on this device. Irreversible — the UI
+// gates it behind an explicit confirm.
+export async function resetCloudToLocal() {
+  const { data: { session } } = await supabaseClient().auth.getSession();
+  if (!session) throw new Error('Sign in first.');
+  const { count, error: countError } = await supabaseClient()
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true });
+  if (countError) throw new Error(countError.message);
+  const { error: deleteError } = await supabaseClient()
+    .from(TABLE)
+    .delete()
+    .neq('external_id', '__pulse-reset-never-matches__');
+  if (deleteError) throw new Error(deleteError.message);
+  await kvSet('lastPushAt', null);
+  await dirtyClearAll();
+  return { deleted: count ?? 0 };
 }

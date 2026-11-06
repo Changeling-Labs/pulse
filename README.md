@@ -185,17 +185,20 @@ The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms /
 
 `js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes both apps' Move history on whichever origin you're on** — export first.
 
-## Cloud Sync (v2.4.0, opt-in)
+## Cloud Sync (v2.5.0, opt-in, background)
 
 Pulse is local-first: without a signed-in user, zero network traffic occurs and no data leaves the device. Cloud sync exists so the same history can roam between devices you own.
 
-- **Off by default.** Signing in is the only way to enable it, and signing in sends nothing by itself — the first sync happens only from **Settings → Sync now**.
+- **Off by default.** Signing in sends nothing by itself; sync runs on the user's terms after that (auto on every save, tab-visible reopen, and network reconnect — plus manual **Sync now**). Nothing is ever pushed before a sign-in.
 - **Design:** one table (`sync_rows` in Pulse's Supabase project) carries every data domain; each row is one JSON delta of one record. Row-level security isolates every user's rows. The client ships only the _publishable_ key. There is no server-side data model — no schema to keep in sync, no passwords anywhere near the app.
 - **Conflict resolution:** last-writer-wins per record (`updated_at`), with a deterministic payload-byte tiebreak on exact timestamp equality. Deletes propagate as tombstones.
 - **Identity:** IndexedDB ids are device-local, so each synced record carries a stable `syncId` (UUID) stamped **additively** at write time; the shared `iron-log` DB is never version-bumped and Iron Log never sees the sync. Fuel ids were already UUIDs; water logs key by date.
 - **Sign-in:** magic link (passwordless). The `pulse-sync-auth` session persists per origin in `localStorage`.
 
-Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add the redirect URLs — production and a local verification port — and note what does NOT sync: **preferences** are device-local, and a **local backup import does not reconcile with the cloud**; after a restore, sign out, sign in and Sync).
+Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add the redirect URLs — production and a local verification port).
+
+- **Automatic sync:** with an active session, Pulse syncs in the background on every local save (debounced ~2.5s), when the tab regains visibility, and on network reconnect. It never runs while signed out.
+- **Backup restore does not reconcile by itself.** After importing a file, tap **Reset cloud to match this device** (Cloud Sync danger zone) to delete every remote row for your account and re-upload this device's state — irreversible.
 
 ## Testing
 
