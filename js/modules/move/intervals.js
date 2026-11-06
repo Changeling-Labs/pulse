@@ -122,10 +122,26 @@ function tick() {
 }
 
 // ── Wake lock ──────────────────────────────────────────────
+// Acquired on start and re-acquired when the tab becomes visible again. The
+// OS may also drop the lock on its own (low power mode, a call, a long
+// background stretch) without a visibility change — listen for that and
+// retry, but only while a run is live and the page is actually visible.
 async function acquireWakeLock() {
   try {
     if (!navigator.wakeLock?.request) return;
-    wakeLock = await navigator.wakeLock.request('screen');
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (wakeLock && !wakeLock.released) return;
+
+    const lock = await navigator.wakeLock.request('screen');
+    wakeLock = lock;
+
+    lock.addEventListener?.('release', () => {
+      if (wakeLock === lock) wakeLock = null;
+      if (!run || run.done) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      // Retry shortly; a fast re-request loop would fight the OS.
+      setTimeout(acquireWakeLock, 1000);
+    });
   } catch { /* denied or unsupported */ }
 }
 

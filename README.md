@@ -202,7 +202,7 @@ The **Intervals** card on the Log tab launches four built-in protocols — Tabat
 
 ### Pulse Fuel
 
-The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A science-backed **Myth Buster** card rotates daily; "Show me another" pulls a random one.
+The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A science-backed **Myth Buster** card rotates daily; "Show me another" pulls a random one. Card copy is pending clinician sign-off — the review surface and checklist live in `docs/myth-cards-review.md`.
 
 ### Pulse Recover
 

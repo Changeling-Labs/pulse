@@ -8,8 +8,23 @@ let audioCtx = null;
 export function primeAudio() {
   const Ctx = globalThis.AudioContext || globalThis.webkitAudioContext;
   if (!Ctx) return;
-  if (!audioCtx) audioCtx = new Ctx();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  try {
+    if (!audioCtx) audioCtx = new Ctx();
+  } catch { return; }
+
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+
+  // iOS Safari only truly unlocks the context once a node has been started
+  // inside the user gesture. A zero-gain blip is inaudible and makes the
+  // first real cue of a later session reliable.
+  try {
+    const osc = audioCtx.createOscillator();
+    const amp = audioCtx.createGain();
+    amp.gain.value = 0;
+    osc.connect(amp).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.01);
+  } catch { /* context closed — beep() will no-op anyway */ }
 }
 
 export function beep({ freq = 880, duration = 0.18, type = 'sine', gain = 0.12, delay = 0 } = {}) {
