@@ -12,6 +12,7 @@ import { getSyncStatus, sendMagicLink, signOutSync, syncNow, resetCloudToLocal }
 import { setsCsv, fuelCsv, waterCsv, recoveryCsv, weeklyMarkdown, mondayOf } from '../exports.js';
 import { downloadText } from '../download.js';
 import { localDateStr } from '../dates.js';
+import { primeAudio, cue, audioStatus } from '../cues.js';
 
 function syncCardHtml(status) {
   if (status.signedIn) {
@@ -94,6 +95,18 @@ async function renderSettings(el) {
           ${REST_OPTIONS.map(o => `<option value="${o.value}" ${String(state.restSeconds) === String(o.value) ? 'selected' : ''}>${o.label}</option>`).join('')}
         </select>
       </div>
+    </div>
+
+    <div class="card-label" style="margin-bottom:8px">Sound</div>
+    <div class="card">
+      <div class="setting-row" style="gap:8px">
+        <div style="flex:1">
+          <div class="setting-label">Test sound</div>
+          <div class="setting-sub">Plays the finish cue and reports what the audio engine is doing. On iPhone, the ring/silent switch still wins until a sound has played — Pulse asks Safari for a playback session, which keeps timer cues audible.</div>
+        </div>
+        <button class="btn" onclick="testSound()">Play</button>
+      </div>
+      <div id="sound-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>
     </div>
 
     <div class="card-label" style="margin-bottom:8px">Equipment</div>
@@ -194,6 +207,35 @@ window.exportWeekNote = safe(async function() {
   const md = weeklyMarkdown({ sets, exercises, recoveryLogs, fuelLogs, waterLogs, weekStart });
   downloadText(`pulse-week-${weekStart}.md`, md, 'text/markdown');
 });
+
+// ── Sound check ────────────────────────────────────────────
+// A deliberate gesture both unlocks the context and tells the user whether
+// sound is actually going to work on this device.
+window.testSound = async function() {
+  const status = document.getElementById('sound-status');
+  if (status) status.textContent = 'Playing…';
+
+  primeAudio();
+
+  // resume() is asynchronous, mostly on iOS; give the context a moment to
+  // reach 'running' so the cue is audible rather than scheduled into silence.
+  const deadline = Date.now() + 700;
+  while (!audioStatus().running && Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  cue('done');
+  const s = audioStatus();
+  if (!status) return;
+
+  if (!s.supported) {
+    status.textContent = 'This browser has no Web Audio, so Pulse can only use vibration here.';
+  } else if (s.running) {
+    status.textContent = `Audio running${s.sessionType ? ` · session “${s.sessionType}”` : ''} — you should hear three rising notes.`;
+  } else {
+    status.textContent = `Audio is “${s.state}” — the browser blocked it. Tap Play again, and check the ring/silent switch on the side of an iPhone.`;
+  }
+};
 
 window.doImport = function() {
   importBackup(async () => {

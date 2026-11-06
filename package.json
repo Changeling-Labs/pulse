@@ -1,6 +1,6 @@
 {
   "name": "pulse",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "private": true,
   "description": "Engineered for Healthspan \u2014 local-first, open-source health engine PWA",
   "type": "module",

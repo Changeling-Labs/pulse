@@ -1532,3 +1532,13 @@ body.interval-active { overflow: hidden; }
   font-size: 12px;
   padding: 6px 12px;
 }
+
+/* Cards are education, not a consult. Kept quiet so it never competes
+   with the card copy but is always on screen with it. */
+.myth-disclaimer {
+  margin-top: 10px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}

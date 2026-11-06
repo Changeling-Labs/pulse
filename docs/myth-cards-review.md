@@ -5,6 +5,13 @@ not medical advice, but they should still be checked by someone with clinical
 training before the app is shared widely. This sheet is the review surface:
 each card gets a decision and, where needed, an edit.
 
+> **Status (2026-11-06):** no clinician was available, so an **AI-assisted
+> conservative pass** was applied for **v2.11.0** (see "AI-assisted pass" below).
+> Every card now ships with an on-screen *"Educational only — not medical
+> advice."* line. The clinician sign-off block at the bottom is **still open** —
+> treat the current wording as a reviewed-by-nobody draft that has been hedged
+> hard, not as clinically approved copy.
+
 **Reviewer instructions**
 
 For each row, read `claim` and `our wording`, then choose one:
@@ -22,16 +29,89 @@ the highest-risk part of each card.
 **Ground rules for the wording**
 
 - No single food is framed as poison or a cure; effect sizes stay modest.
-- Claims are hedged ("for most people", "weak association") where the evidence
+- Claims are hedged ("for most people", "associated with") where the evidence
   is observational.
 - The card never tells the user to stop a prescribed medication or diet.
 - Numbers only appear where a guideline body states them.
 
-**Suggested anchors** (starting points for the reviewer, not citations for the
-cards themselves): national dietary guidelines in force at review time, WHO
-guidance on fats and free sugars, and the major cardiology/metabolic society
-statements on diet and cardiovascular risk. Add the exact citation you relied
-on in `reviewer notes` if you want it tracked in-repo.
+---
+
+## AI-assisted pass — v2.11.0
+
+No clinician was available, so the cards were revised conservatively against
+primary sources. Rules used for the pass:
+
+1. **Observational evidence is named as observational.** No "causes", no
+   "inevitably", no single-nutrient villain.
+2. **No comparative claims about medication.** The old LDL card said VO2max
+   "rivals medications"; it now says fitness is a strong *predictor* of
+   mortality and leaves treatment decisions to a clinician.
+3. **No medical targets in `action` lines.** The protein range is attributed to
+   the ISSN position stand and paired with an explicit "if you have kidney
+   disease, set protein with your doctor".
+4. **Uncertainty is stated where it exists** (individual cholesterol response,
+   food-frequency confounding, modest effect sizes).
+
+### What changed
+
+| id | change |
+|---|---|
+| `myth-dietary-cholesterol` | "little effect" → "moves blood cholesterol far less than saturated and trans fats", plus individual variation. Action no longer implies eggs are settled for everyone. |
+| `myth-seed-oils` | "one contributor among many" → "evidence does not support a unique causal role"; bigger factors listed. |
+| `myth-carbs-evil` | "cardioprotective" → "associated with lower risk" (observational hedging). |
+| `myth-red-meat-heart` | Explicitly labelled observational; "weak association" → "modest associations" with processed vs unprocessed separated. |
+| `myth-keto-cure` | "excels" → "can help short-term"; long-term adherence and food quality foregrounded. |
+| `myth-small-meals` | Softened "no meaningful effect" → "little effect"; claim unchanged otherwise. |
+| `myth-fruit-sugar` | "lose most of that protection" → "much less of that protection". |
+| `myth-low-fat-always` | "which worsen" → "which can raise"; removed the implication that all low-fat products are harmful. |
+| `myth-cholesterol-number` | **Largest change.** "VO2max rivals medications" removed. Now: fitness is one of the strongest predictors of long-term mortality, comparable to several traditional risk factors. Action defers medication to the clinician. |
+| `myth-protein-damage` | "no meaningful harm" kept but bounded to "short- and medium-term studies"; range corrected to **1.4–2.0 g/kg** (ISSN position stand) and paired with a kidney-disease caveat. |
+
+### References used
+
+- **Cardiorespiratory fitness and mortality** — Mandsager K, et al. *Association
+  of Cardiorespiratory Fitness With Long-term Mortality Among Adults Undergoing
+  Exercise Treadmill Testing.* JAMA Netw Open. 2018;1(6):e183605.
+  doi:10.1001/jamanetworkopen.2018.3605 — lower CRF carried an adjusted hazard
+  comparable to or greater than traditional risk factors; no upper limit of
+  benefit observed.
+- **Fitness as a clinical vital sign** — Ross R, et al. *Importance of Assessing
+  Cardiorespiratory Fitness in Clinical Practice: A Case for Fitness as a
+  Clinical Vital Sign.* Circulation. 2016;134(24):e653–e699.
+  doi:10.1161/CIR.0000000000000461.
+- **Protein and kidney function in healthy adults** — Devries MC, et al. *A
+  Systematic Review of Renal Health in Healthy Individuals Associated with
+  Protein Intake above the US Recommended Daily Allowance in Randomized
+  Controlled Trials and Observational Studies.* Adv Nutr. 2018;9(4):404–418.
+  doi:10.1093/advances/nmy026 — no meaningful effect on kidney-function markers
+  in healthy adults; evidence in existing CKD is a separate question.
+- **Protein intake for training** — Jäger R, et al. *International Society of
+  Sports Nutrition Position Stand: Protein and Exercise.* J Int Soc Sports Nutr.
+  2017;14:20. doi:10.1186/s12970-017-0177-8 — 1.4–2.0 g/kg/day.
+- **Meal frequency** — Aragon AA, Schoenfeld BJ. *Nutrient timing revisited: is
+  there a post-exercise anabolic window?* J Int Soc Sports Nutr. 2013;10:5,
+  and the ISSN meal-frequency position stand — total intake dominates; meal
+  frequency has little independent effect on energy expenditure.
+- **Dietary fat / cholesterol guidance** — WHO and national dietary guidelines
+  in force at review time (saturated fat <10% of energy; replace with
+  unsaturated fat).
+
+These are starting citations for a reviewer, not claims of a systematic review.
+If a clinician edits a card, add the source they relied on to `reviewer notes`.
+
+### Known residual risk (for the clinician)
+
+1. **`myth-protein-damage` action** still gives a number. It is the ISSN range
+   for healthy training adults, but any number can be misapplied by someone
+   with undiagnosed CKD.
+2. **`myth-cholesterol-number`** touches statin territory. The current wording
+   deliberately does not comment on medication benefit.
+3. **`myth-low-fat-always`** could be read as "eat unlimited fat". It is framed
+   as food quality, not a fat target.
+4. **`myth-red-meat-heart`** rests on observational cohorts with residual
+   confounding; "modest" is doing a lot of work.
+5. **No card covers alcohol, sodium or supplements** — deliberate omissions,
+   not endorsements.
 
 ---
 
@@ -39,16 +119,16 @@ on in `reviewer notes` if you want it tracked in-repo.
 
 | # | id | claim (as shown) | our wording (truth) | suggested `action` | decision | reviewer notes |
 |---|----|------------------|---------------------|--------------------|----------|----------------|
-| 1 | `myth-dietary-cholesterol` | Dietary cholesterol is the main driver of heart disease. | Dietary cholesterol has little effect on blood lipids for most people; saturated and trans fats and excess refined carbs move the needle far more. | Focus on cutting ultra-processed foods instead of fearing eggs or shrimp. | ☐ Keep ☐ Edit ☐ Drop | |
-| 2 | `myth-seed-oils` | Seed oils are the single cause of modern chronic disease. | Seed oils are one contributor among many; total calorie excess, ultra-processed food, smoking, alcohol and inactivity dwarf any single-ingredient effect. | Cook with stable oils, but win the bigger battles first: whole foods, fiber, movement, sleep. | ☐ Keep ☐ Edit ☐ Drop | |
-| 3 | `myth-carbs-evil` | Carbs are inherently fattening and should be eliminated. | Carb quality and quantity matter: fiber-rich whole carbs (legumes, grains, fruit, tubers) are cardioprotective; refined carbs are the issue. | Swap white refined carbs for beans, oats, fruit and potatoes before cutting carbs entirely. | ☐ Keep ☐ Edit ☐ Drop | |
-| 4 | `myth-red-meat-heart` | Red meat inevitably causes heart attacks. | Unprocessed lean red meat has a weak association with risk; processed meats (bacon, sausages) are the consistent problem across studies. | Limit processed meats; keep unprocessed portions near a palm and pair with vegetables. | ☐ Keep ☐ Edit ☐ Drop | |
-| 5 | `myth-keto-cure` | A ketogenic diet is objectively the healthiest diet for everyone. | Keto excels for short-term weight loss and some metabolic conditions, but any diet high in whole foods, fiber and unsaturated fat with a calorie balance works long-term. | Pick the eating pattern you can sustain for decades, not the one with the best marketing. | ☐ Keep ☐ Edit ☐ Drop | |
-| 6 | `myth-small-meals` | You must eat every 2–3 hours to keep your metabolism high. | Metabolic rate is governed by total intake, body size, protein intake and activity — meal frequency shows no meaningful effect on total energy expenditure. | Eat on a rhythm you can keep; don't stress-graze to "boost metabolism". | ☐ Keep ☐ Edit ☐ Drop | |
-| 7 | `myth-fruit-sugar` | Fruit sugar is just as bad as table sugar. | Whole fruit pairs sugar with fiber, water and polyphenols, slowing absorption and improving satiety; juices and smoothies lose most of that protection. | Eat fruit whole; drink water, not juice. | ☐ Keep ☐ Edit ☐ Drop | |
-| 8 | `myth-low-fat-always` | Low-fat foods are always the heart-healthy choice. | Low-fat products are often reformulated with refined carbs and sugar, which worsen triglycerides and insulin response. | Prefer unpackaged food: fatty fish, nuts, olive oil, avocado — not "fat-free" snack packs. | ☐ Keep ☐ Edit ☐ Drop | |
-| 9 | `myth-cholesterol-number` | Lowering one cholesterol number (LDL) is the whole game. | Risk is multi-factorial: blood pressure, smoking, glucose, HDL, triglycerides, inflammation and fitness all matter — and VO2max rivals medications as a risk predictor. | Chase the whole profile: fitness, waist, BP, lipids, glucose — not just the LDL reading. | ☐ Keep ☐ Edit ☐ Drop | |
-| 10 | `myth-protein-damage` | High-protein diets damage healthy kidneys. | In people with normal kidney function, high protein intake shows no meaningful harm; the concern applies to pre-existing kidney disease and is dose-dependent. | Aim for enough protein (roughly 1.6–2.2 g/kg for training); flag true kidney disease with your doctor instead. | ☐ Keep ☐ Edit ☐ Drop | |
+| 1 | `myth-dietary-cholesterol` | Dietary cholesterol is the main driver of heart disease. | For most people, cholesterol in food moves blood cholesterol far less than saturated and trans fats do, and the response varies widely between individuals. | Spend your effort on ultra-processed foods and saturated fat; eggs and shrimp are not the villain for most people. | ☐ Keep ☐ Edit ☐ Drop | AI pass: hedged + individual variation |
+| 2 | `myth-seed-oils` | Seed oils are the single cause of modern chronic disease. | Evidence does not support seed oils as a unique cause of chronic disease; overall diet pattern, calorie excess, smoking, alcohol and inactivity matter far more. | Cook with oils you like, but win the bigger battles first: whole foods, fiber, movement, sleep. | ☐ Keep ☐ Edit ☐ Drop | AI pass: removed "one contributor" framing |
+| 3 | `myth-carbs-evil` | Carbs are inherently fattening and should be eliminated. | Carb quality and quantity both matter: fiber-rich whole carbs (legumes, grains, fruit, tubers) are associated with lower risk, while refined carbs are the ones to watch. | Swap refined carbs for beans, oats, fruit and potatoes before cutting carbs entirely. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "cardioprotective" → "associated with lower risk" |
+| 4 | `myth-red-meat-heart` | Red meat inevitably causes heart attacks. | Observational studies link processed meats (bacon, sausages) more consistently to risk than unprocessed red meat, and the associations are modest either way. | Limit processed meats; keep unprocessed portions near a palm and pair with vegetables. | ☐ Keep ☐ Edit ☐ Drop | AI pass: named observational, split processed/unprocessed |
+| 5 | `myth-keto-cure` | A ketogenic diet is objectively the healthiest diet for everyone. | Keto can help short-term weight loss and is used clinically for some metabolic conditions, but long term, adherence and food quality matter more than the label. | Pick the eating pattern you can sustain for decades, not the one with the best marketing. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "excels" softened |
+| 6 | `myth-small-meals` | You must eat every 2–3 hours to keep your metabolism high. | Metabolic rate is governed by total intake, body size, protein intake and activity — meal frequency shows little effect on total energy expenditure. | Eat on a rhythm you can keep; don't stress-graze to "boost metabolism". | ☐ Keep ☐ Edit ☐ Drop | AI pass: minor hedge |
+| 7 | `myth-fruit-sugar` | Fruit sugar is just as bad as table sugar. | Whole fruit pairs sugar with fiber, water and polyphenols, which slows absorption and improves satiety; juice delivers the sugar with much less of that protection. | Eat fruit whole; drink water, not juice. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "lose most" → "much less" |
+| 8 | `myth-low-fat-always` | Low-fat foods are always the heart-healthy choice. | Low-fat products are often reformulated with refined carbs and sugar, which can raise triglycerides — the label says less fat, not better food. | Prefer unpackaged food: fatty fish, nuts, olive oil, avocado — not "fat-free" snack packs. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "which worsen" → "which can raise" |
+| 9 | `myth-cholesterol-number` | Lowering one cholesterol number (LDL) is the whole game. | Risk is multi-factorial: blood pressure, smoking, glucose, lipids, inflammation and fitness all matter. Cardiorespiratory fitness is one of the strongest predictors of long-term mortality — comparable to, or stronger than, several traditional risk factors. | Chase the whole profile: fitness, waist, BP, lipids, glucose. Medication decisions belong with your clinician. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "VO2max rivals medications" removed (Mandsager 2018; Ross 2016) |
+| 10 | `myth-protein-damage` | High-protein diets damage healthy kidneys. | In people with normal kidney function, higher protein intakes have not shown meaningful harm in short- and medium-term studies. The concern applies to people who already have kidney disease. | If you train and your kidneys are healthy, roughly 1.4–2.0 g/kg is a reasonable range. If you have kidney disease, set protein with your doctor. | ☐ Keep ☐ Edit ☐ Drop | AI pass: bounded to short/medium term; range corrected to ISSN 1.4–2.0 g/kg (Devries 2018; Jäger 2017) |
 
 ---
 
@@ -61,4 +141,6 @@ on in `reviewer notes` if you want it tracked in-repo.
 - Summary of required edits:
 
 Once reviewed, edit `MYTH_CARDS` in `js/fuel.js` and bump the release (the
-cards are embedded, so a wording change ships with the next version).
+cards are embedded, so a wording change ships with the next version). Keep the
+`myth-disclaimer` line in `js/modules/fuel/fuel.js` in place — it is the
+in-app statement that these cards are education, not medical advice.

@@ -79,6 +79,7 @@ async function renderFuel(el) {
       <div class="myth-truth"><b>Truth:</b> ${myth.truth}</div>
       <div class="myth-action"><b>Do this:</b> ${myth.action}</div>
       <button type="button" class="btn btn-ghost" onclick="newMythCard()">Show me another →</button>
+      <div class="myth-disclaimer">Educational only — not medical advice.</div>
     </div>
 
     <div class="card">

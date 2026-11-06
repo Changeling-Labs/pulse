@@ -49,6 +49,23 @@ test('myth cards are well-formed and unique', () => {
   }
 });
 
+test('myth copy keeps the v2.11.0 medical-advice guardrails', () => {
+  const copy = MYTH_CARDS.map(c => `${c.truth} ${c.action}`).join(' ');
+
+  // Claims deliberately removed in the conservative pass.
+  assert.doesNotMatch(copy, /rivals? medications/i);
+  assert.doesNotMatch(copy, /\binevitabl[ey]\b/i);
+  assert.doesNotMatch(copy, /\bcardioprotective\b/i);
+
+  // The protein card must keep its kidney-disease caveat and ISSN range.
+  const protein = MYTH_CARDS.find(c => c.id === 'myth-protein-damage');
+  assert.match(protein.action, /1\.4–2\.0 g\/kg/);
+  assert.match(protein.action, /kidney disease/i);
+
+  // No card may tell someone to stop a prescribed treatment.
+  assert.doesNotMatch(copy, /stop (taking|your) (medication|statin)/i);
+});
+
 test('getDailyMythCard is deterministic for a given date', () => {
   const a = getDailyMythCard('2026-11-05');
   const b = getDailyMythCard('2026-11-05');

@@ -92,6 +92,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 
 - [x] **Step 5.1: Training ↔ Recovery Insights (v2.9.0)** — `js/insights.js` (pure, tested) buckets training into completed Monday–Sunday weeks, splits them at the median weekly set count, and compares sleep, soreness and resting HR between heavier and lighter weeks. It also reports Pearson correlations and one plain-language readout. Deliberately descriptive: no readiness score, no prediction, no advice.
 - [x] **Step 5.2: Open Exports (v2.10.0)** — Settings gains one-click CSV snapshots (sets, fuel, water, recovery) and a weekly Markdown note shaped for Obsidian. `js/exports.js` (pure, tested) builds the strings; `js/download.js` hands them to the browser. Read-only — the JSON backup stays the restore path.
+- [x] **Reliability pass (v2.11.0)** — iOS audio hardening: the cue layer now resumes a context parked in `interrupted`, declares a `playback` audio session (so the ring/silent switch no longer mutes timer cues), unlocks with a silent buffer, and re-primes on the next gesture after backgrounding. Settings gains a **Test sound** button. Fuel myth cards got a conservative evidence pass plus a permanent "Educational only — not medical advice" line.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -206,7 +207,7 @@ The **Intervals** card on the Log tab launches four built-in protocols — Tabat
 
 ### Pulse Fuel
 
-The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A science-backed **Myth Buster** card rotates daily; "Show me another" pulls a random one. Card copy is pending clinician sign-off — the review surface and checklist live in `docs/myth-cards-review.md`.
+The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration. A **Myth Buster** card rotates daily; "Show me another" pulls a random one. Every card carries an *"Educational only — not medical advice"* line, and the `action` lines avoid medical targets. Card copy had a conservative evidence pass in v2.11.0 but is **still pending clinician sign-off** — the review surface, changed-row log and references live in `docs/myth-cards-review.md`.
 
 ### Pulse Recover
 
@@ -217,6 +218,8 @@ Recover is a *signal*, not a diagnosis: it never scores you or tells you to trai
 Below the trends, **Training ↔ recovery** compares your completed weeks by training volume. Weeks are split at the median weekly *set* count (a hard calisthenics week counts the same as a heavy barbell week; tonnage is shown only where weight × reps exists), then sleep, soreness and resting HR are averaged for the heavier and lighter halves. When there are enough paired weeks, it also shows a Pearson correlation and one plain-language line. It refuses to draw a conclusion from fewer than four eligible weeks, and it always says the quiet part out loud: association only — recovery has many other inputs. Logic lives in `js/insights.js` (pure and unit-tested); no new database, no sync domain, no network.
 
 ### Open exports
+
+Settings → Preferences offers **Test sound**, which primes the audio context, plays the finish cue and reports what the browser is actually doing (`running` / `interrupted` / `suspended`, plus the declared audio session). On iPhone this is the fastest way to tell a silent switch apart from a blocked context.
 
 Settings → Data offers **Open exports**, all local and one-way:
 
