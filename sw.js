@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v5';
+const CACHE = 'pulse-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -44,8 +44,19 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+//
+// Only same-origin GET requests are cacheable. Everything else — Supabase
+// auth and sync (POST, cross-origin), manifest, icons — goes straight to the
+// network. Intercepted and routed through respondWith, a POST would die as
+// "FetchEvent.respondWith received an error: TypeError: Load failed".
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;                    // POSTs & co: not ours
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;           // cross-origin: not ours
+
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(cached => cached ||
+      fetch(e.request).catch(() => cached)                   // last-resort fallback
+    )
   );
 });
