@@ -15,7 +15,7 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.sync_rows (
-  user_id      uuid        not null references auth.users (id) on delete cascade,
+  user_id      uuid        not null default auth.uid() references auth.users (id) on delete cascade,
   domain       text        not null check (domain in ('exercises', 'sets', 'fuel_logs', 'water_logs', 'equipment')),
   external_id  text        not null,
   payload      jsonb       not null,

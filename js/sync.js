@@ -327,7 +327,7 @@ async function deleteLocal(domain, externalId) {
 }
 
 // ── Push pass ─────────────────────────────────────────────
-async function pushAll(lastPushAtIso) {
+async function pushAll(lastPushAtIso, userId) {
   const summary = { pushed: 0, tombstones: 0, rows: [] };
   const dirty = await dirtyAll();
   const processedDirty = [];
@@ -335,7 +335,7 @@ async function pushAll(lastPushAtIso) {
   // 1) tombstones first — an offline delete must beat any remote row
   for (const entry of dirty) {
     if (entry.op !== 'delete') continue;
-    summary.rows.push(tombstoneFor(entry.domain, entry.externalId, nowIso()));
+    summary.rows.push({ ...tombstoneFor(entry.domain, entry.externalId, nowIso()), user_id: userId });
     processedDirty.push(entry);
   }
 
@@ -360,6 +360,7 @@ async function pushAll(lastPushAtIso) {
       summary.rows.push({
         domain: 'equipment',
         external_id: 'equipment',
+        user_id: userId,
         payload: {
           barWeight: bar?.value ?? 45,
           plates: plates?.value ?? null,
@@ -403,10 +404,10 @@ async function pushAll(lastPushAtIso) {
   // batched upsert; proven by the 200-row batch size limit used in practice
   const CHUNK = 200;
   for (let i = 0; i < summary.rows.length; i += CHUNK) {
-    const chunk = summary.rows.slice(i, i + CHUNK);
+    const chunk = summary.rows.slice(i, i + CHUNK).map(r => ({ ...r, user_id: r.user_id ?? userId }));
     const { error } = await supabaseClient()
       .from(TABLE)
-      .upsert(chunk.map(r => ({ ...r })), { onConflict: 'user_id,domain,external_id' });
+      .upsert(chunk, { onConflict: 'user_id,domain,external_id' });
     if (error) throw new Error(`sync push failed: ${error.message}`);
   }
 
@@ -601,7 +602,7 @@ export async function syncNow() {
 
     const lastPushAt = await kvGet('lastPushAt', null);
     progress.phase = 'push';
-    const push = await pushAll(lastPushAt);
+    const push = await pushAll(lastPushAt, session.user.id);
     await kvSet('lastPushAt', nowIso());
 
     progress.phase = 'pull';
