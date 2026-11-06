@@ -93,7 +93,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Step 5.1: Training ↔ Recovery Insights (v2.9.0)** — `js/insights.js` (pure, tested) buckets training into completed Monday–Sunday weeks, splits them at the median weekly set count, and compares sleep, soreness and resting HR between heavier and lighter weeks. It also reports Pearson correlations and one plain-language readout. Deliberately descriptive: no readiness score, no prediction, no advice.
 - [x] **Step 5.2: Open Exports (v2.10.0)** — Settings gains one-click CSV snapshots (sets, fuel, water, recovery) and a weekly Markdown note shaped for Obsidian. `js/exports.js` (pure, tested) builds the strings; `js/download.js` hands them to the browser. Read-only — the JSON backup stays the restore path.
 - [x] **Reliability pass (v2.11.0)** — iOS audio hardening: the cue layer now resumes a context parked in `interrupted`, declares a `playback` audio session (so the ring/silent switch no longer mutes timer cues), unlocks with a silent buffer, and re-primes on the next gesture after backgrounding. Settings gains a **Test sound** button. Fuel myth cards got a conservative evidence pass plus a permanent "Educational only — not medical advice" line.
-- [x] **Progress → Trends (v2.12.0)** — the PRs tab becomes **Progress**, with a Records | Trends switch. Trends is descriptive only: weekly tonnage and sessions-per-week charts over 4 weeks / 12 weeks / 1 year, a summary row (training days, sets, tonnage, sessions per week), and a top-set sparkline per lift for the last 8 sessions. Gaps render as gaps, a zero-tonnage week renders as a hairline, and the delta compares the selected window with the window immediately before it. No score, no target, no prediction. `js/trends.js` is pure and tested (19 tests).
+- [x] **Progress → Trends (v2.12.0–v2.13.0)** — the PRs tab becomes **Progress**, with a Records | Trends switch. Trends is descriptive only: weekly tonnage and sessions-per-week charts over 4 weeks / 12 weeks / 1 year, a summary row (training days, sets, tonnage, sessions per week), a top-set sparkline per lift for the last 8 sessions, a training-day consistency heatmap, bodyweight (optional Recover field) with a weekly-average line, weekly sleep/soreness/resting-HR means, and fuel trends (protein, water, whole-food share). Gaps render as gaps, a zero-tonnage week renders as a hairline, and deltas use complete weeks only. No score, no target, no prediction. `js/trends.js` is pure and tested (29 tests).
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -139,7 +139,7 @@ pulse/
     fuel.js         # Pulse Fuel logic (hand portions, myth cards)
     recover.js      # Pulse Recover logic (date windows, averages, deltas)
     insights.js     # Training volume ↔ recovery comparison (descriptive)
-    trends.js       # Weekly trend series + sparkline/bar chart strings
+    trends.js       # Weekly trend series, heatmap, body/fuel series + SVG chart strings
     exports.js      # CSV + weekly Markdown builders (read-only snapshots)
     download.js     # Blob/anchor download helper
     version.js      # Version string
@@ -152,9 +152,17 @@ pulse/
 The **Progress** tab holds two views:
 
 - **Records** — 1RM/3RM/5RM, best volume set and per-metric bests, filtered by the PR window (3 months → all time).
-- **Trends** — weekly tonnage and sessions-per-week bars, a summary row (training days, sets, tonnage, sessions per week) and a top-set sparkline per lift for its last 8 sessions. Range is 4 weeks, 12 weeks or 1 year.
+- **Trends** — range of 4 weeks, 12 weeks or 1 year, with a summary row (training days, sets, tonnage, sessions per week) plus:
+  - weekly tonnage and sessions-per-week bars
+  - a **consistency heatmap** of training days (one column per week, Monday → Sunday)
+  - a top-set **sparkline per lift** for its last 8 sessions
+  - **bodyweight** — latest, a weekly-average line, and the first → last change across the window
+  - **body signals** — weekly means for sleep, soreness and resting HR
+  - **fuel** — mean daily protein, mean daily water and whole-food share
 
-Trends are deliberately **descriptive**: no readiness score, no target line, no projection, no "good/bad" language. Missing weeks are drawn as gaps rather than zeros, a week with sets but no tonnage (bodyweight or timed work) gets a hairline bar instead of disappearing, and percentage changes are always labelled as *vs the previous window of the same length*. All maths happens on-device from the sets already in IndexedDB — no network, no new store.
+Trends are deliberately **descriptive**: no readiness score, no target line, no projection, no "good/bad" language. Missing weeks are drawn as gaps rather than zeros, a week with sets but no tonnage (bodyweight or timed work) gets a hairline bar instead of disappearing, future heatmap days are outlined rather than blank, and percentage changes are always labelled as *vs the previous window of the same length*. Bodyweight direction is explicitly not a verdict. All maths happens on-device from IndexedDB — no network, no new store.
+
+Bodyweight is optional on the daily Recover check-in and stored as `weightLbs` (pounds, like every other weight), entered and displayed in the unit chosen in Settings. It is an additive per-record field: no DB version bump and no extra sync domain.
 
 ## Data model
 

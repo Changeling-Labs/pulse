@@ -3,16 +3,19 @@
 // Trends is descriptive only — no score, no prediction, no advice.
 import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { dw, sinceDate, fmtDate, fmtDuration } from '../../kernel/helpers.js';
-import { displayDistance } from '../../calc.js';
-import { getSets, getAllPRs, setPref } from '../../db.js';
+import { displayDistance, displayWeight } from '../../calc.js';
+import { getSets, getAllPRs, setPref, getRecoveryLogs, getFuelLogs, getWaterLogs } from '../../db.js';
 import { METRIC_LABELS } from '../../schema.js';
 import { metricPR } from '../../pr.js';
 import { strengthExercises } from './shared.js';
 import { localDateStr } from '../../dates.js';
 import {
-  RANGE_OPTIONS, rangeFor, trainingWeeks, exerciseProgression, progressionDelta,
+  RANGE_OPTIONS, rangeFor, weekStarts, trainingWeeks, exerciseProgression, progressionDelta,
   trainingDelta, deltaBasis, formatDelta, sparkline, barSeries,
+  heatmap, weeklyProtein, weeklyWater, weeklyWholeShare,
+  weeklyBodyweight, weeklyValues, latestWeight, weightChange,
 } from '../../trends.js';
+import { METRICS, formatMetric } from '../../recover.js';
 
 const PR_METRIC_LABEL = { timed: 'Best time', distance: 'Best distance', output: 'Best output' };
 const WINDOW_LABEL = { '90': 'Last 3 months', '180': 'Last 6 months', '365': 'Last year', 'all': 'All time' };
@@ -127,13 +130,16 @@ async function recordsHtml() {
 }
 
 // ── Trends ─────────────────────────────────────────────────
-// Two charts and a summary row, all computed on-device from the sets the tab
-// already loads. The delta compares the selected window with the window
-// immediately before it, so "4 weeks" means 4 weeks vs the previous 4.
+// Descriptive charts over one window, all computed on-device. Training is the
+// anchor; body and fuel cards appear when those stores have data. The delta
+// compares complete weeks in the window with the same number of weeks before,
+// so a Monday morning never reads as a collapse.
 async function renderTrends(el, seg) {
   const range = rangeFor(state.trendRange);
   const today = localDateStr();
-  const sets = await getSets();
+  const [sets, recoveryLogs, fuelLogs, waterLogs] = await Promise.all([
+    getSets(), getRecoveryLogs(), getFuelLogs(), getWaterLogs(),
+  ]);
 
   const rangeToggle = `
     <div class="range-toggle progress-range" role="tablist" aria-label="Trend range">
@@ -142,101 +148,225 @@ async function renderTrends(el, seg) {
       `).join('')}
     </div>`;
 
-  if (sets.length === 0) {
+  const hasTraining = sets.length > 0;
+  const hasRecovery = recoveryLogs.length > 0;
+  const hasFuel = fuelLogs.length > 0 || waterLogs.length > 0;
+
+  if (!hasTraining && !hasRecovery && !hasFuel) {
     el.innerHTML = `${seg}${rangeToggle}
       <div class="card">
         <div class="empty">
           <div class="icon">📈</div>
-          <p>No sets logged yet. Trends appear once you have a couple of weeks of training.</p>
+          <p>Nothing to trend yet. Log a set, a meal or a check-in and this view fills in.</p>
         </div>
       </div>`;
     return;
   }
 
-  const wide = trainingWeeks(sets, { weeks: range.weeks * 2, endDate: today });
-  const current = wide.slice(-range.weeks);
-  const previous = wide.slice(0, range.weeks);
+  const starts = weekStarts(range.weeks, today);
+  const weekLabel = (i, text) => `Week of ${fmtDate(starts[i])} — ${text}`;
 
-  // A week with no sets is a gap, not a zero-tonnage week.
-  const currentTonnage = current.map(w => (w.sets > 0 ? w.tonnage : null));
-  const delta = trainingDelta(current, previous);
-  const basis = deltaBasis(current);
+  // ── Training ──
+  let trainingHtml = '';
+  let trainingDayCount = 0;
 
-  const totalSets = current.reduce((n, w) => n + w.sets, 0);
-  const totalTonnage = current.reduce((n, w) => n + w.tonnage, 0);
-  const trainingDays = current.reduce((n, w) => n + w.days, 0);
-  const completeWeeks = current.filter(w => !w.partial);
-  const sessionsPerWeek = completeWeeks.length
-    ? Math.round((completeWeeks.reduce((n, w) => n + w.sessions, 0) / completeWeeks.length) * 10) / 10
-    : 0;
+  if (hasTraining) {
+    const wide = trainingWeeks(sets, { weeks: range.weeks * 2, endDate: today });
+    const current = wide.slice(-range.weeks);
+    const previous = wide.slice(0, range.weeks);
 
-  const weekLabels = current.map(w =>
-    `Week of ${fmtDate(w.weekStart)} — ${w.sets ? `${w.sets} sets · ${fmtTonnage(w.tonnage)}` : 'no sets'}${w.partial ? ' (partial)' : ''}`
-  );
-  const tonnageBars = barSeries(currentTonnage, { labels: weekLabels, label: 'Weekly tonnage' });
-  const sessionBars = barSeries(current.map(w => (w.sets > 0 ? w.sessions : null)), {
-    labels: current.map(w => `Week of ${fmtDate(w.weekStart)} — ${w.sessions} session${w.sessions === 1 ? '' : 's'}`),
-    label: 'Sessions per week',
-    max: 7,
-  });
+    // A week with no sets is a gap, not a zero-tonnage week.
+    const currentTonnage = current.map(w => (w.sets > 0 ? w.tonnage : null));
+    const delta = trainingDelta(current, previous);
+    const basis = deltaBasis(current);
 
-  const since = current[0]?.weekStart ?? null;
-  const lifts = strengthExercises()
-    .map(ex => ({ ex, points: exerciseProgression(sets, ex.id, { sessions: 8, since }) }))
-    .filter(({ points }) => points.length >= 2)
-    .sort((a, b) => b.points.length - a.points.length)
-    .slice(0, 6);
+    const totalSets = current.reduce((n, w) => n + w.sets, 0);
+    const totalTonnage = current.reduce((n, w) => n + w.tonnage, 0);
+    const trainingDays = current.reduce((n, w) => n + w.days, 0);
+    trainingDayCount = trainingDays;
+    const completeWeeks = current.filter(w => !w.partial);
+    const sessionsPerWeek = completeWeeks.length
+      ? Math.round((completeWeeks.reduce((n, w) => n + w.sessions, 0) / completeWeeks.length) * 10) / 10
+      : 0;
 
-  const liftCards = lifts.map(({ ex, points }) => {
-    const first = points[0];
-    const last = points[points.length - 1];
-    const deltaPct = progressionDelta(points);
+    const weekLabels = current.map(w =>
+      `Week of ${fmtDate(w.weekStart)} — ${w.sets ? `${w.sets} sets · ${fmtTonnage(w.tonnage)}` : 'no sets'}${w.partial ? ' (partial)' : ''}`
+    );
+    const sessionLabels = current.map(w =>
+      `Week of ${fmtDate(w.weekStart)} — ${w.sets ? `${w.sessions} session${w.sessions === 1 ? '' : 's'}` : 'no sets'}`
+    );
+
+    const since = current[0]?.weekStart ?? null;
+    const lifts = strengthExercises()
+      .map(ex => ({ ex, points: exerciseProgression(sets, ex.id, { sessions: 8, since }) }))
+      .filter(({ points }) => points.length >= 2)
+      .sort((a, b) => b.points.length - a.points.length)
+      .slice(0, 6);
+
+    const liftCards = lifts.map(({ ex, points }) => {
+      const first = points[0];
+      const last = points[points.length - 1];
+      const deltaPct = progressionDelta(points);
+      return `
+        <div class="lift-row">
+          <div class="lift-head">
+            <span class="lift-name">${ex.name}</span>
+            <span class="lift-val">${dw(last.weight)} <span class="lift-reps">× ${last.reps}</span></span>
+          </div>
+          ${sparkline(points.map(p => p.weight), { label: `${ex.name} top set, ${points.length} sessions` })}
+          <div class="lift-foot">
+            ${fmtDate(first.date)} ${dw(first.weight)} → ${fmtDate(last.date)} ${dw(last.weight)}
+            ${deltaPct === null ? '' : ` · ${formatDelta(deltaPct)}`}
+            · ${points.length} session${points.length === 1 ? '' : 's'}
+          </div>
+        </div>`;
+    }).join('');
+
+    trainingHtml = `
+      <div class="stat-grid four">
+        <div class="stat"><div class="stat-val">${trainingDays}</div><div class="stat-lbl">Training days</div></div>
+        <div class="stat"><div class="stat-val">${totalSets}</div><div class="stat-lbl">Sets</div></div>
+        <div class="stat"><div class="stat-val sm">${fmtTonnage(totalTonnage)}</div><div class="stat-lbl">Tonnage</div></div>
+        <div class="stat"><div class="stat-val">${sessionsPerWeek}</div><div class="stat-lbl">Sessions / wk</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Weekly tonnage</div>
+        <div class="trend-head">
+          <span class="trend-name">${range.label} · ${fmtDate(current[0].weekStart)} – ${fmtDate(current.at(-1).weekEnd)}</span>
+          <span class="trend-avg">${delta === null
+            ? 'no earlier complete weeks to compare'
+            : `${formatDelta(delta)} vs previous ${basis} week${basis === 1 ? '' : 's'}`}</span>
+        </div>
+        ${barSeries(currentTonnage, { labels: weekLabels, label: 'Weekly tonnage' })}
+        <div class="trend-foot">Mon–Sun. The current week is partial; gaps are weeks with no sets.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Sessions per week</div>
+        ${barSeries(current.map(w => (w.sets > 0 ? w.sessions : null)), {
+          labels: sessionLabels, label: 'Sessions per week', max: 7,
+        })}
+        <div class="trend-foot">A session is a day with at least one set. Nothing here is a target.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Lift progression · top set</div>
+        ${liftCards || '<div class="empty"><p>Log the same lift on two different days to see its line.</p></div>'}
+        ${liftCards ? '<div class="trend-foot">Top set per session, last 8 sessions in range. Bodyweight and timed work are not plotted.</div>' : ''}
+      </div>`;
+  }
+
+  // ── Consistency heatmap ──
+  const consistencyCard = hasTraining ? `
+    <div class="card">
+      <div class="card-label">Consistency</div>
+      ${heatmap(sets, { weeks: range.weeks, endDate: today, label: `Training days over ${range.label}` })}
+      <div class="heat-foot">
+        <span>${trainingDayCount} training day${trainingDayCount === 1 ? '' : 's'} in ${range.label}</span>
+        <span>Darker = more sets</span>
+      </div>
+      <div class="trend-foot">One column per week, Monday → Sunday. Outlined cells have not happened yet. A blank cell is a day with no sets — not a verdict.</div>
+    </div>` : '';
+
+  // ── Bodyweight ──
+  const weightSeries = weeklyBodyweight(recoveryLogs, { weeks: range.weeks, endDate: today });
+  const latest = latestWeight(recoveryLogs);
+  const change = weightChange(recoveryLogs, { weeks: range.weeks, endDate: today });
+
+  let changeText = 'Log on two different weeks to see a change.';
+  if (change) {
+    const sign = change.delta > 0 ? '+' : change.delta < 0 ? '−' : '';
+    const magnitude = displayWeight(Math.abs(change.delta), state.unit);
+    changeText = `${sign}${magnitude} across ${change.weighIns} weigh-in${change.weighIns === 1 ? '' : 's'} since ${fmtDate(change.firstDate)}`;
+  }
+
+  const bodyweightCard = `
+    <div class="card">
+      <div class="card-label">Bodyweight</div>
+      ${latest ? `
+        <div class="lift-head">
+          <span class="lift-name">Latest · ${fmtDate(latest.date)}</span>
+          <span class="lift-val">${displayWeight(latest.weightLbs, state.unit)}</span>
+        </div>
+        ${sparkline(weightSeries, { height: 40, label: `Weekly average bodyweight over ${range.label}` })}
+        <div class="lift-foot">${changeText}</div>
+        <div class="trend-foot">Weekly average of the bodyweight on your Recover check-ins. Shown for information — up or down is not automatically good or bad.</div>
+      ` : '<div class="empty"><p>Add bodyweight to a Recover check-in to see this line.</p></div>'}
+    </div>`;
+
+  // ── Body signals ──
+  const signalSeries = new Map(METRICS.map(metric => [
+    metric.key,
+    weeklyValues(recoveryLogs, metric.key, { weeks: range.weeks, endDate: today, combine: 'mean' }),
+  ]));
+  const hasSignals = [...signalSeries.values()].some(series => series.some(v => v !== null));
+
+  const signalRows = METRICS.map(metric => {
+    const series = signalSeries.get(metric.key);
+    const logged = series.filter(v => v !== null);
+    const latestValue = logged.length ? logged[logged.length - 1] : null;
     return `
       <div class="lift-row">
         <div class="lift-head">
-          <span class="lift-name">${ex.name}</span>
-          <span class="lift-val">${dw(last.weight)} <span class="lift-reps">× ${last.reps}</span></span>
+          <span class="lift-name">${metric.label}</span>
+          <span class="lift-val">${latestValue === null ? '—' : formatMetric(metric.key, latestValue)} <span class="lift-reps">weekly avg</span></span>
         </div>
-        ${sparkline(points.map(p => p.weight), { label: `${ex.name} top set, ${points.length} sessions` })}
-        <div class="lift-foot">
-          ${fmtDate(first.date)} ${dw(first.weight)} → ${fmtDate(last.date)} ${dw(last.weight)}
-          ${deltaPct === null ? '' : ` · ${formatDelta(deltaPct)}`}
-          · ${points.length} session${points.length === 1 ? '' : 's'}
-        </div>
+        ${sparkline(series, { label: `${metric.label} weekly average` })}
+        <div class="lift-foot">${logged.length < 2
+          ? 'Log another week to see a line.'
+          : `${logged.length} weeks logged in ${range.label}`}</div>
       </div>`;
   }).join('');
 
-  el.innerHTML = `${seg}${rangeToggle}
-    <div class="stat-grid four">
-      <div class="stat"><div class="stat-val">${trainingDays}</div><div class="stat-lbl">Training days</div></div>
-      <div class="stat"><div class="stat-val">${totalSets}</div><div class="stat-lbl">Sets</div></div>
-      <div class="stat"><div class="stat-val sm">${fmtTonnage(totalTonnage)}</div><div class="stat-lbl">Tonnage</div></div>
-      <div class="stat"><div class="stat-val">${sessionsPerWeek}</div><div class="stat-lbl">Sessions / wk</div></div>
-    </div>
-
+  const bodySignalsCard = `
     <div class="card">
-      <div class="card-label">Weekly tonnage</div>
-      <div class="trend-head">
-        <span class="trend-name">${range.label} · ${fmtDate(current[0].weekStart)} – ${fmtDate(current.at(-1).weekEnd)}</span>
-        <span class="trend-avg">${delta === null
-          ? 'no earlier complete weeks to compare'
-          : `${formatDelta(delta)} vs previous ${basis} week${basis === 1 ? '' : 's'}`}</span>
-      </div>
-      ${tonnageBars}
-      <div class="trend-foot">Mon–Sun. The current week is partial; gaps are weeks with no sets.</div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Sessions per week</div>
-      ${sessionBars}
-      <div class="trend-foot">A session is a day with at least one set. Nothing here is a target.</div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Lift progression · top set</div>
-      ${liftCards || '<div class="empty"><p>Log the same lift on two different days to see its line.</p></div>'}
-      ${liftCards ? '<div class="trend-foot">Top set per session, last 8 sessions in range. Bodyweight and timed work are not plotted.</div>' : ''}
+      <div class="card-label">Body signals</div>
+      ${hasSignals ? signalRows : '<div class="empty"><p>Log sleep, soreness or resting HR in Recover to see these lines.</p></div>'}
+      ${hasSignals ? '<div class="trend-foot">Weekly averages of what you logged. Soreness has no universal good direction, so none is implied.</div>' : ''}
     </div>`;
+
+  // ── Fuel ──
+  const proteinSeries = weeklyProtein(fuelLogs, { weeks: range.weeks, endDate: today });
+  const waterSeries = weeklyWater(waterLogs, { weeks: range.weeks, endDate: today });
+  const wholeSeries = weeklyWholeShare(fuelLogs, { weeks: range.weeks, endDate: today });
+
+  const fuelRow = (title, values, format, { max = null, foot = '' } = {}) => {
+    const logged = values.filter(v => v !== null);
+    const mean = logged.length
+      ? Math.round((logged.reduce((a, b) => a + b, 0) / logged.length) * 10) / 10
+      : null;
+    return `
+      <div class="trend">
+        <div class="trend-head">
+          <span class="trend-name">${title}</span>
+          <span class="trend-avg">${mean === null ? '—' : `${format(mean)} avg`}</span>
+        </div>
+        ${barSeries(values, {
+          labels: values.map((v, i) => weekLabel(i, v === null ? 'no logs' : format(v))),
+          label: title,
+          max,
+        })}
+        ${foot ? `<div class="trend-foot">${foot}</div>` : ''}
+      </div>`;
+  };
+
+  const hasFuelData = proteinSeries.some(v => v !== null) ||
+    waterSeries.some(v => v !== null) ||
+    wholeSeries.some(v => v !== null);
+
+  const fuelCard = `
+    <div class="card">
+      <div class="card-label">Fuel</div>
+      ${hasFuelData ? `
+        ${fuelRow('Protein · daily mean', proteinSeries, v => `${Math.round(v)} g`)}
+        ${fuelRow('Water · daily mean', waterSeries, v => `${Math.round(v * 10) / 10} glasses`, { max: 8 })}
+        ${fuelRow('Whole-food share', wholeSeries, v => `${Math.round(v)}%`, { max: 100 })}
+        <div class="trend-foot">Meals are totalled per day, then averaged per week. A gap is a week with no logs, not a zero.</div>
+      ` : '<div class="empty"><p>Log a meal or some water to see these bars.</p></div>'}
+    </div>`;
+
+  el.innerHTML = `${seg}${rangeToggle}${trainingHtml}${consistencyCard}${bodyweightCard}${bodySignalsCard}${fuelCard}`;
 }
 
 // ── Tab ────────────────────────────────────────────────────

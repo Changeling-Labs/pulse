@@ -6,6 +6,9 @@ import {
   compareWindows, trainingDelta, deltaBasis, formatDelta,
   exerciseProgression, progressionDelta,
   sparkline, barSeries,
+  countsByDate, activeDays, heatmap,
+  dailyTotals, weeklyFromDaily, weeklyProtein, weeklyWater,
+  weeklyBodyweight, latestWeight, weightChange,
 } from '../js/trends.js';
 
 // Friday 2026-11-06 → current week starts Monday 2026-11-02.
@@ -202,4 +205,103 @@ test('barSeries renders gaps, a visible zero and scales to the max', () => {
 test('barSeries honours an explicit max', () => {
   const html = barSeries([3], { max: 7, label: 'Sessions' });
   assert.match(html, /height:43%/);
+});
+
+// ── Consistency ────────────────────────────────────────────
+test('countsByDate and activeDays count records, not values', () => {
+  const sets = [
+    { date: '2026-11-02' }, { date: '2026-11-02' }, { date: '2026-11-04' },
+    { date: '2026-11-04' }, { date: '2026-11-04' },
+  ];
+  const counts = countsByDate(sets);
+  assert.equal(counts.get('2026-11-02'), 2);
+  assert.equal(counts.get('2026-11-04'), 3);
+  assert.equal(activeDays(sets), 2);
+  assert.equal(activeDays([]), 0);
+});
+
+test('heatmap renders 7 rows per week, shades by set count and marks future days', () => {
+  const sets = [
+    { date: '2026-11-02' },
+    { date: '2026-11-03' }, { date: '2026-11-03' },
+    { date: '2026-11-04' }, { date: '2026-11-04' }, { date: '2026-11-04' },
+  ];
+  const html = heatmap(sets, { weeks: 2, endDate: TODAY, label: 'Training days' });
+
+  assert.equal((html.match(/class="heat-cell/g) || []).length, 14);
+  assert.equal((html.match(/heat-cell on/g) || []).length, 3);
+  assert.equal((html.match(/ on l2/g) || []).length, 1);
+  assert.equal((html.match(/ on l3/g) || []).length, 1);
+  assert.equal((html.match(/heat-cell future/g) || []).length, 2);   // Nov 7–8
+  assert.match(html, /aria-label="Training days"/);
+  assert.match(html, /2026-11-04 — 3 sets/);
+});
+
+test('heatmap accepts a prebuilt count map', () => {
+  const html = heatmap(new Map([['2026-11-05', 1]]), { weeks: 1, endDate: TODAY });
+  assert.equal((html.match(/heat-cell on/g) || []).length, 1);
+  assert.equal((html.match(/class="heat-cell/g) || []).length, 7);
+});
+
+// ── Fuel & body series ─────────────────────────────────────
+test('dailyTotals sums repeated meals within a day', () => {
+  const totals = dailyTotals([
+    { date: '2026-11-02', proteinGrams: 30 },
+    { date: '2026-11-02', proteinGrams: 25 },
+    { date: '2026-11-03', proteinGrams: 40 },
+    { date: '2026-11-03', proteinGrams: null },
+  ], 'proteinGrams');
+  assert.equal(totals.get('2026-11-02'), 55);
+  assert.equal(totals.get('2026-11-03'), 40);
+});
+
+test('weeklyProtein averages daily totals and leaves empty weeks as gaps', () => {
+  const logs = [
+    { date: '2026-11-02', proteinGrams: 30 },
+    { date: '2026-11-02', proteinGrams: 20 },   // same day → 50
+    { date: '2026-11-03', proteinGrams: 40 },   // next day
+  ];
+  assert.deepEqual(weeklyProtein(logs, { weeks: 2, endDate: TODAY }), [null, 45]);
+});
+
+test('weeklyWater averages glasses per logged day', () => {
+  const water = [
+    { date: '2026-11-02', glasses: 8 },
+    { date: '2026-11-03', glasses: 6 },
+  ];
+  assert.deepEqual(weeklyWater(water, { weeks: 2, endDate: TODAY }), [null, 7]);
+});
+
+test('weeklyFromDaily can sum instead of mean', () => {
+  const daily = new Map([['2026-11-02', 2], ['2026-11-03', 3]]);
+  assert.deepEqual(weeklyFromDaily(daily, { weeks: 1, endDate: TODAY, combine: 'sum' }), [5]);
+});
+
+test('weeklyBodyweight averages weigh-ins inside the week', () => {
+  const logs = [
+    { date: '2026-11-02', weightLbs: 180 },
+    { date: '2026-11-05', weightLbs: 178.5 },
+    { date: '2026-10-27', weightLbs: 190 },       // previous week
+    { date: '2026-11-04', sleepHours: 8 },         // no weight: ignore
+  ];
+  assert.deepEqual(weeklyBodyweight(logs, { weeks: 2, endDate: TODAY }), [190, 179.3]);
+});
+
+test('latestWeight and weightChange describe real weigh-ins only', () => {
+  const logs = [
+    { date: '2026-11-05', weightLbs: 178.4 },
+    { date: '2026-10-20', weightLbs: 182.4 },
+    { date: '2026-11-01' },                        // no weight
+    { date: '2026-10-25', weightLbs: null },
+  ];
+  assert.deepEqual(latestWeight(logs), { date: '2026-11-05', weightLbs: 178.4 });
+  assert.equal(latestWeight([]), null);
+
+  const change = weightChange(logs, { weeks: 4, endDate: TODAY });
+  assert.equal(change.from, 182.4);
+  assert.equal(change.to, 178.4);
+  assert.equal(change.delta, -4);
+  assert.equal(change.weighIns, 2);
+
+  assert.equal(weightChange([{ date: '2026-11-05', weightLbs: 178 }], { weeks: 4, endDate: TODAY }), null);
 });

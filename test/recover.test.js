@@ -24,6 +24,24 @@ test('normalizeRecoveryLog keeps missing metrics as null, not zero', () => {
   assert.equal(log.note, '');
 });
 
+test('normalizeRecoveryLog clamps bodyweight to 50–1000 lb, one decimal', () => {
+  const log = normalizeRecoveryLog({ date: '2026-11-06', weightLbs: 182.46 });
+  assert.equal(log.weightLbs, 182.5);
+  assert.equal(normalizeRecoveryLog({ weightLbs: 10 }).weightLbs, 50);
+  assert.equal(normalizeRecoveryLog({ weightLbs: 2000 }).weightLbs, 1000);
+  assert.equal(normalizeRecoveryLog({ weightLbs: '' }).weightLbs, null);
+  assert.equal(normalizeRecoveryLog({ weightLbs: 'heavy' }).weightLbs, null);
+});
+
+test('validateRecoveryLog accepts a weight-only check-in but rejects absurd weights', () => {
+  const weightOnly = { date: '2026-11-06', sleepHours: null, soreness: null, restingHr: null, weightLbs: 180, note: '' };
+  assert.equal(validateRecoveryLog(weightOnly).ok, true);
+
+  assert.equal(validateRecoveryLog({ ...weightOnly, weightLbs: 20 }).ok, false);
+  assert.equal(validateRecoveryLog({ ...weightOnly, weightLbs: 1200 }).ok, false);
+  assert.equal(validateRecoveryLog({ ...weightOnly, weightLbs: null }).ok, false);   // now empty
+});
+
 test('validateRecoveryLog rejects empty rows and accepts partial ones', () => {
   assert.equal(validateRecoveryLog({ date: '2026-11-06', sleepHours: null, soreness: null, restingHr: null, note: '' }).ok, false);
   assert.equal(validateRecoveryLog({ date: '2026-11-06', sleepHours: 7, soreness: null, restingHr: null, note: '' }).ok, true);

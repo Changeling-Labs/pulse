@@ -143,8 +143,13 @@ export function normalizeRecoveryLog(raw = {}) {
   let restingHr = numOrNull(out.restingHr);
   if (restingHr !== null) restingHr = Math.round(Math.max(30, Math.min(220, restingHr)));
 
+  // Bodyweight is stored in pounds like every other weight in the app, so
+  // there is one conversion path (js/calc.js). Optional; null = not weighed.
+  let weightLbs = numOrNull(out.weightLbs);
+  if (weightLbs !== null) weightLbs = Math.round(Math.max(50, Math.min(1000, weightLbs)) * 10) / 10;
+
   const note = typeof out.note === 'string' ? out.note.trim().slice(0, 500) : '';
-  return { ...out, date, sleepHours, soreness, restingHr, note };
+  return { ...out, date, sleepHours, soreness, restingHr, weightLbs, note };
 }
 
 export function validateRecoveryLog(log = {}) {
@@ -160,7 +165,12 @@ export function validateRecoveryLog(log = {}) {
   if (log.restingHr !== null && (!Number.isInteger(log.restingHr) || log.restingHr < 30 || log.restingHr > 220)) {
     return { ok: false, error: 'Resting heart rate must be between 30 and 220 bpm.' };
   }
-  if (log.sleepHours === null && log.soreness === null && log.restingHr === null && !log.note) {
+  if (log.weightLbs !== null && log.weightLbs !== undefined &&
+      (!Number.isFinite(log.weightLbs) || log.weightLbs < 50 || log.weightLbs > 1000)) {
+    return { ok: false, error: 'Bodyweight must be between 50 and 1,000 lb.' };
+  }
+  if (log.sleepHours === null && log.soreness === null && log.restingHr === null &&
+      (log.weightLbs === null || log.weightLbs === undefined) && !log.note) {
     return { ok: false, error: 'Log at least one recovery metric.' };
   }
   return { ok: true };
@@ -169,6 +179,8 @@ export function validateRecoveryLog(log = {}) {
 // Bump when the *backup file* shape changes. See migrateBackup().
 // v4 = exercises carry `metrics[]` AND backups carry fuelLogs/waterLogs.
 // Older exports (≤v2.1.0) import fine: fuel arrays default to [].
+// v4 also absorbs additive per-record fields without a bump (e.g. recovery
+// `weightLbs` in v2.13.0) because import normalizes each record, not the file.
 export const BACKUP_VERSION = 4;
 
 // Fill in defaults so every consumer can assume a uniform shape.

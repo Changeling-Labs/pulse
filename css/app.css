@@ -1622,3 +1622,83 @@ body.interval-active { overflow: hidden; }
   line-height: 1.5;
   margin-top: 8px;
 }
+
+/* ── Recover: bodyweight input ───────────────────────── */
+.recover-weight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.recover-weight-input {
+  width: 92px;
+  padding: 2px 4px;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-md);
+  border-radius: 0;
+  -moz-appearance: textfield;
+}
+
+.recover-weight-input::-webkit-outer-spin-button,
+.recover-weight-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.recover-weight-input:focus {
+  outline: none;
+  border-bottom-color: var(--glow);
+}
+
+.recover-weight-unit {
+  min-width: 20px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* ── Progress: consistency heatmap ───────────────────── */
+.heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  /* Square cells, capped so a 4-week window does not become huge tiles.
+     Longer ranges keep shrinking until the row fits the card. */
+  width: 100%;
+  max-width: calc(var(--weeks, 12) * 24px);
+  margin: 10px auto 0;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: rgba(158, 196, 255, 0.07);
+}
+
+.heat-cell.on { background: var(--glow); opacity: 0.45; }
+.heat-cell.on.l2 { opacity: 0.7; }
+.heat-cell.on.l3 { opacity: 0.95; }
+
+/* Days after today in the current week: not "missed", just not here yet. */
+.heat-cell.future {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.heat-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 8px;
+}

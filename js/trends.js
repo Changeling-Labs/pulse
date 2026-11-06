@@ -109,6 +109,132 @@ export function weeklyWholeShare(fuelLogs = [], { weeks = 12, endDate = localDat
   });
 }
 
+// ── Consistency ────────────────────────────────────────────
+// Distinct records per calendar day. Used by the heatmap, where a day with
+// any activity is "on" and the number of sets only changes the shade.
+export function countsByDate(records = []) {
+  const counts = new Map();
+  for (const record of records ?? []) {
+    if (!record?.date) continue;
+    counts.set(record.date, (counts.get(record.date) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function countMap(input) {
+  if (input instanceof Map) return input;
+  if (Array.isArray(input)) return countsByDate(input);
+  return new Map(Object.entries(input ?? {}));
+}
+
+export function activeDays(input) {
+  let days = 0;
+  for (const count of countMap(input).values()) if (count > 0) days++;
+  return days;
+}
+
+// GitHub-style calendar: one column per week (oldest → newest), 7 rows
+// Monday → Sunday. Days after `endDate` are marked `future` rather than empty
+// so the current week does not read as a run of missed days.
+export function heatmap(input, { weeks = 12, endDate = localDateStr(), label = 'Training consistency' } = {}) {
+  const counts = countMap(input);
+  const starts = weekStarts(weeks, endDate);
+  const cells = [];
+
+  for (const start of starts) {
+    for (let row = 0; row < 7; row++) {
+      const date = addDays(start, row);
+      const count = counts.get(date) ?? 0;
+      const future = date > endDate;
+      const level = count >= 3 ? ' l3' : count === 2 ? ' l2' : '';
+      const title = future
+        ? `${date} — not yet`
+        : count > 0
+          ? `${date} — ${count} set${count === 1 ? '' : 's'}`
+          : `${date} — no sets`;
+      cells.push(`<div class="heat-cell${count > 0 ? ' on' : ''}${level}${future ? ' future' : ''}" title="${esc(title)}" aria-label="${esc(title)}"></div>`);
+    }
+  }
+
+  return `<div class="heat" style="--weeks:${weeks}" role="img" aria-label="${esc(label)}">${cells.join('')}</div>`;
+}
+
+// ── Daily totals & weekly means ────────────────────────────
+// Fuel is logged per meal, so average the *day* first, then the week. Summing
+// meals and averaging weeks would let a heavily-logged day dominate.
+export function dailyTotals(records = [], pick) {
+  const totals = new Map();
+  for (const record of records ?? []) {
+    if (!record?.date) continue;
+    const value = typeof pick === 'function' ? pick(record) : record[pick];
+    if (!isNum(value)) continue;
+    totals.set(record.date, (totals.get(record.date) ?? 0) + Number(value));
+  }
+  return totals;
+}
+
+export function weeklyFromDaily(daily = new Map(), {
+  weeks = 12,
+  endDate = localDateStr(),
+  combine = 'mean',
+} = {}) {
+  return weekStarts(weeks, endDate).map(start => {
+    const values = [];
+    for (let i = 0; i < 7; i++) {
+      const value = daily.get(addDays(start, i));
+      if (value !== undefined) values.push(value);
+    }
+    if (!values.length) return null;
+    return combine === 'mean' ? round1(sum(values) / values.length) : sum(values);
+  });
+}
+
+export function weeklyProtein(fuelLogs = [], opts = {}) {
+  return weeklyFromDaily(dailyTotals(fuelLogs, 'proteinGrams'), { ...opts, combine: 'mean' });
+}
+
+export function weeklyWater(waterLogs = [], opts = {}) {
+  return weeklyFromDaily(dailyTotals(waterLogs, 'glasses'), { ...opts, combine: 'mean' });
+}
+
+export function weeklyBodyweight(recoveryLogs = [], opts = {}) {
+  return weeklyValues(recoveryLogs, 'weightLbs', { ...opts, combine: 'mean' });
+}
+
+// ── Bodyweight points ──────────────────────────────────────
+// Weight is optional on a check-in. A missing weight is not a missing day, so
+// these only ever contain actual weigh-ins.
+export function weightPoints(recoveryLogs = []) {
+  return (recoveryLogs ?? [])
+    .filter(log => log?.date && isNum(log.weightLbs))
+    .map(log => ({ date: log.date, weightLbs: Number(log.weightLbs) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function latestWeight(recoveryLogs = []) {
+  const points = weightPoints(recoveryLogs);
+  return points.length ? points[points.length - 1] : null;
+}
+
+// Descriptive change across the visible window: first → last weigh-in.
+// Deliberately does not label a direction as good or bad.
+export function weightChange(recoveryLogs = [], { weeks = 12, endDate = localDateStr() } = {}) {
+  const start = weekStarts(weeks, endDate)[0];
+  const points = weightPoints(recoveryLogs).filter(p => p.date >= start && p.date <= endDate);
+  if (points.length < 2) return null;
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  return {
+    from: first.weightLbs,
+    to: last.weightLbs,
+    delta: round1(last.weightLbs - first.weightLbs),
+    weighIns: points.length,
+    firstDate: first.date,
+    lastDate: last.date,
+  };
+}
+
 // ── Training ───────────────────────────────────────────────
 // Reuses the insight windowing so there is one definition of a training week.
 export function trainingWeeks(sets = [], { weeks = 12, endDate = localDateStr() } = {}) {

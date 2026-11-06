@@ -3,7 +3,7 @@
 // edits either today or a day picked from history; stats are pure
 // (js/recover.js). Saving is explicit so half-finished check-ins never sync.
 
-import { renderTab, registerTab } from '../../kernel/shell.js';
+import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { fmtDate, todayStr } from '../../kernel/helpers.js';
 import { getRecoveryLog, getRecoveryLogs, saveRecoveryLog, deleteRecoveryLog, getSets } from '../../db.js';
 import {
@@ -11,6 +11,7 @@ import {
   barFraction, formatMetric, describeDelta, METRICS,
 } from '../../recover.js';
 import { buildInsight } from '../../insights.js';
+import { toKg, toLbs, displayWeight } from '../../calc.js';
 
 let windowDays = 7;
 let editingDate = null;      // null = today
@@ -23,11 +24,20 @@ const esc = s => String(s ?? '')
 
 const hasAnyValue = d => !!d && (
   Number.isFinite(d.sleepHours) || Number.isFinite(d.soreness) ||
-  Number.isFinite(d.restingHr) || !!String(d.note ?? '').trim()
+  Number.isFinite(d.restingHr) || Number.isFinite(d.weightLbs) ||
+  !!String(d.note ?? '').trim()
 );
 
 const sleepText = v => (Number.isFinite(v) ? `${Number.isInteger(v) ? v : v.toFixed(1)}h` : '—');
 const rhrText = v => (Number.isFinite(v) ? `${Math.round(v)} bpm` : '—');
+const weightText = v => (Number.isFinite(v) ? displayWeight(v, state.unit) : '—');
+
+// The input edits in display units; storage stays in pounds.
+const weightDisplayValue = lbs => {
+  if (!Number.isFinite(lbs)) return '';
+  const value = state.unit === 'kg' ? toKg(lbs) : Math.round(lbs * 10) / 10;
+  return String(value);
+};
 
 function dateLabel(date) {
   const label = new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
@@ -62,6 +72,32 @@ function metricRow(key, label, note, valueText) {
     </div>`;
 }
 
+// Bodyweight is the one check-in field typed rather than stepped: nobody
+// wants to tap their way from 60 to 82 kg. Clearable like the others.
+function weightRow() {
+  const isSet = Number.isFinite(draft.weightLbs);
+  const min = state.unit === 'kg' ? 22.7 : 50;
+  const max = state.unit === 'kg' ? 453.6 : 1000;
+  return `
+    <div class="recover-row">
+      <div class="recover-row-label">
+        <span>Bodyweight</span>
+        <small>optional · same time of day</small>
+      </div>
+      <div class="recover-weight">
+        <input type="number" id="recover-weight" class="recover-weight-input"
+          inputmode="decimal" step="0.1" min="${min}" max="${max}"
+          value="${weightDisplayValue(draft.weightLbs)}" placeholder="—"
+          oninput="recoverWeight(this.value)"
+          aria-label="Bodyweight in ${state.unit === 'kg' ? 'kilograms' : 'pounds'}" />
+        <span class="recover-weight-unit">${state.unit}</span>
+      </div>
+      <button type="button" class="recover-clear${isSet ? '' : ' hidden'}"
+        id="recover-weight-clear"
+        onclick="recoverClearMetric('weightLbs')" aria-label="Clear bodyweight">✕</button>
+    </div>`;
+}
+
 function checkinCard(dateLabelText, isToday) {
   const chips = Array.from({ length: 10 }, (_, i) => i + 1).map(n => `
     <button type="button" data-n="${n}"
@@ -80,6 +116,7 @@ function checkinCard(dateLabelText, isToday) {
 
       ${metricRow('sleepHours', 'Sleep', 'last night', sleepText(draft.sleepHours))}
       ${metricRow('restingHr', 'Resting HR', 'on waking', rhrText(draft.restingHr))}
+      ${weightRow()}
 
       <div class="recover-block">
         <div class="recover-row-label" style="width:100%">
@@ -227,6 +264,7 @@ function historyRow(log) {
     Number.isFinite(log.sleepHours) ? sleepText(log.sleepHours) : null,
     Number.isFinite(log.soreness) ? `${log.soreness}/10` : null,
     Number.isFinite(log.restingHr) ? `${log.restingHr} bpm` : null,
+    Number.isFinite(log.weightLbs) ? weightText(log.weightLbs) : null,
   ].filter(Boolean);
   if (!parts.length && log.note) parts.push(log.note);
 
@@ -271,6 +309,7 @@ async function renderRecover(el) {
     sleepHours: existing?.sleepHours ?? null,
     soreness: existing?.soreness ?? null,
     restingHr: existing?.restingHr ?? null,
+    weightLbs: existing?.weightLbs ?? null,
     note: existing?.note ?? '',
   };
 
@@ -295,10 +334,18 @@ function syncFormDom() {
   if (sleepVal) sleepVal.textContent = sleepText(draft.sleepHours);
   if (rhrVal) rhrVal.textContent = rhrText(draft.restingHr);
 
+  // Never rewrite the field the user is typing in — that moves the caret.
+  const weightInput = document.getElementById('recover-weight');
+  if (weightInput && document.activeElement !== weightInput) {
+    weightInput.value = weightDisplayValue(draft.weightLbs);
+  }
+
   const sleepClear = document.getElementById('recover-sleep-clear');
   const rhrClear = document.getElementById('recover-rhr-clear');
+  const weightClear = document.getElementById('recover-weight-clear');
   sleepClear?.classList.toggle('hidden', !Number.isFinite(draft.sleepHours));
   rhrClear?.classList.toggle('hidden', !Number.isFinite(draft.restingHr));
+  weightClear?.classList.toggle('hidden', !Number.isFinite(draft.weightLbs));
 
   document.querySelectorAll('.sore-chip').forEach(chip => {
     chip.classList.toggle('active', Number(chip.dataset.n) === draft.soreness);
@@ -319,6 +366,19 @@ window.recoverStep = function(key, delta) {
     ? Math.max(0, Math.min(14, next))
     : Math.max(30, Math.min(220, Math.round(next)));
   syncFormDom();
+};
+
+window.recoverWeight = function(value) {
+  if (!draft) return;
+  const n = parseFloat(value);
+  draft.weightLbs = Number.isFinite(n)
+    ? (state.unit === 'kg' ? toLbs(n) : n)
+    : null;
+  const clear = document.getElementById('recover-weight-clear');
+  clear?.classList.toggle('hidden', !Number.isFinite(draft.weightLbs));
+  document.querySelector('.recover-saved')?.remove();
+  const save = document.getElementById('recover-save');
+  if (save) save.disabled = !hasAnyValue(draft);
 };
 
 window.recoverSetSoreness = function(n) {
