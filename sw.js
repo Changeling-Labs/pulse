@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v4';
+const CACHE = 'pulse-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,10 @@ const ASSETS = [
   './js/confetti.js',
   './js/backup.js',
   './js/version.js',
+  './js/sync.js',
+  './js/sync-core.js',
+  './js/sync-config.js',
+  './js/vendor/supabase.js',
   './manifest.json',
 ];
 

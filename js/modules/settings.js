@@ -5,10 +5,52 @@ import { exportBackup, importBackup } from '../backup.js';
 import { SET_TYPES, METRIC_LABELS } from '../schema.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { REST_OPTIONS } from './move/timer.js';
+import { getSyncStatus, sendMagicLink, signOutSync, syncNow } from '../sync.js';
+
+function syncCardHtml(status) {
+  if (status.signedIn) {
+    const last = status.lastSyncAt
+      ? `Last synced ${new Date(status.lastSyncAt).toLocaleString()}`
+      : 'Not synced yet';
+    const queue = status.queueCount > 0 ? `${status.queueCount} pending` : 'up to date';
+    return `
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label">${status.email}</div>
+        <div class="setting-sub">${last} · ${queue}</div>
+      </div>
+      <button class="btn btn-primary" style="padding:8px 14px" onclick="syncPulseNow()">Sync now</button>
+    </div>
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label">Sign out</div>
+        <div class="setting-sub">The session leaves this device; your cloud rows stay until you delete the project from Supabase.</div>
+      </div>
+      <button class="btn btn-ghost" onclick="signOutPulseSync()">Sign out</button>
+    </div>
+    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>`;
+  }
+  return `
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label">Cloud sync</div>
+        <div class="setting-sub">Optional. Sign in and your sets, exercises, fuel logs, hydration and equipment roam across devices. Nothing ever leaves this device until you sign in. Works on every device, including offline training sessions.</div>
+      </div>
+    </div>
+    <div class="setting-row" style="gap:8px">
+      <input type="email" id="sync-email" placeholder="you@example.com" style="flex:1;min-width:0" />
+      <button class="btn btn-primary" style="padding:8px 14px;white-space:nowrap" onclick="sendPulseSyncLink()">Send magic link</button>
+    </div>
+    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>`;
+}
 
 // ── Settings ───────────────────────────────────────────────
 async function renderSettings(el) {
+  const syncStatus = await getSyncStatus();
+  const syncCard = `<div class="card-label" style="margin-bottom:8px">Cloud Sync</div>
+    <div class="card" id="sync-card">${syncCardHtml(syncStatus)}</div>`;
   el.innerHTML = `
+    ${syncCard}
     <div class="card-label" style="margin-bottom:8px">Preferences</div>
     <div class="card">
       <div class="setting-row">
@@ -169,5 +211,54 @@ window.openAddExercise = function() {
 };
 
 
+
+async function updateSyncCard() {
+  const card = document.getElementById('sync-card');
+  if (!card) return null;
+  try {
+    card.innerHTML = syncCardHtml(await getSyncStatus());
+    return document.getElementById('sync-status');
+  } catch (e) {
+    card.innerHTML = `<div class="setting-row"><div class="setting-sub">Sync unavailable: ${e.message}</div></div>`;
+    return null;
+  }
+}
+
+window.sendPulseSyncLink = async function() {
+  const input = document.getElementById('sync-email');
+  let status = document.getElementById('sync-status');
+  const email = input?.value?.trim() ?? '';
+  if (status) status.textContent = 'Sending…';
+  try {
+    await sendMagicLink(email);
+    if (status) status.textContent = `Magic link sent to ${email} — it opens this device, signed in.`;
+    input.value = '';
+  } catch (e) {
+    if (status) status.textContent = e.message;
+  }
+};
+
+window.syncPulseNow = async function() {
+  const card = document.getElementById('sync-card');
+  if (!card) return;
+  card.innerHTML = '<div class="setting-row"><div class="setting-sub">Talking to Supabase…</div></div>';
+  try {
+    const s = await syncNow();
+    const status = await updateSyncCard();
+    if (status) status.textContent = `Synced — pushed ${s.pushed}, applied ${s.applied}, deletes ${s.deletes}.`;
+  } catch (e) {
+    const status = await updateSyncCard();
+    if (status) status.textContent = `Sync failed: ${e?.message ?? e}`;
+  }
+};
+
+window.signOutPulseSync = async function() {
+  try {
+    await signOutSync();
+  } catch (e) {
+    console.warn('sign-out failed', e);
+  }
+  await updateSyncCard();
+};
 
 registerTab('settings', { title: 'Settings', render: renderSettings });

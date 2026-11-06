@@ -1,5 +1,29 @@
 import { normalizeSet, normalizeExercise, validateSet, normalizeFuelLog, validateFuelLog, normalizeWaterLog } from './schema.js';
 
+// Sync bookkeeping -----------------------------------------------------------
+// Write paths stamp two additive fields onto records:
+//   syncId     — stable cross-device identity (uuid). Fuel ids are already
+//                uuids; water logs are keyed by date; everything else needs
+//                one. Numeric IndexedDB ids are device-local and useless
+//                across devices.
+//   updatedAt  — ISO timestamp for last-writer-wins conflict resolution.
+// Iron Log never sees these and its normalize passes them through safely.
+// Nothing here bumps DB_VERSION; reads tolerate records without the fields.
+function notifyDirty(domain, externalId, op = 'put') {
+  if (typeof document === 'undefined') return;
+  document.dispatchEvent(new CustomEvent('pulse:dirty', {
+    detail: { domain, externalId, op },
+  }));
+}
+
+const newSyncId = () => crypto.randomUUID();
+const stampWrite = record => {
+  const stamped = { ...record };
+  if (!stamped.syncId) stamped.syncId = newSyncId();
+  stamped.updatedAt = new Date().toISOString();
+  return stamped;
+};
+
 // Pulse is the continuation of Iron Log. The IndexedDB name stays 'iron-log'
 // on purpose: same github.io origin, same database — installed clients keep
 // their full history after the rebrand. Do not rename without a migration.
@@ -138,15 +162,29 @@ export async function migrateExerciseMetrics() {
   }
 }
 
-export const addExercise = (name, metrics = ['strength']) =>
-  put('exercises', normalizeExercise({ name, metrics }));
+export async function addExercise(name, metrics = ['strength']) {
+  const record = stampWrite(normalizeExercise({ name, metrics }));
+  const id = await put('exercises', record);
+  notifyDirty('exercises', record.syncId, 'put');
+  return id;
+}
 
-export const deleteExercise = id => del('exercises', id);
+export async function deleteExercise(id) {
+  const exercise = await get('exercises', id);
+  const syncId = exercise?.syncId;
+  await del('exercises', id);
+  if (syncId) notifyDirty('exercises', syncId, 'delete');
+}
 
 export async function updateExerciseMetrics(id, metrics) {
   const exercise = await get('exercises', id);
   if (!exercise) return null;
-  return put('exercises', normalizeExercise({ ...exercise, metrics }));
+  const merged = normalizeExercise({ ...exercise, metrics });
+  merged.syncId = exercise.syncId ?? newSyncId();
+  merged.updatedAt = new Date().toISOString();
+  const out = await put('exercises', merged);
+  notifyDirty('exercises', merged.syncId, 'put');
+  return out;
 }
 
 // ── Sets ───────────────────────────────────────────────────
@@ -169,18 +207,20 @@ async function metricsFor(exerciseId, cache) {
 
 export async function addSet(payload) {
   // weight is always stored in lbs
-  const record = normalizeSet(payload);
+  const record = stampWrite(normalizeSet(payload));
   const metrics = await metricsFor(record.exerciseId, new Map());
   const { ok, error } = validateSet(record, metrics);
   if (!ok) throw new Error(error);
-  return put('sets', record);
+  const id = await put('sets', record);
+  notifyDirty('sets', record.syncId, 'put');
+  return id;
 }
 
 // Write several sets in one transaction. Circuit logging produces
 // rounds × exercises records at once, and they should land together or
 // not at all.
 export async function addSets(payloads) {
-  const records = payloads.map(normalizeSet);
+  const records = payloads.map(p => stampWrite(normalizeSet(p)));
   const cache = new Map();   // one exercise read per exerciseId, not per record
   for (const record of records) {
     const metrics = await metricsFor(record.exerciseId, cache);
@@ -192,19 +232,32 @@ export async function addSets(payloads) {
     const store = tx('sets', 'readwrite');
     for (const record of records) store.put(record);
     const t = store.transaction;
-    t.oncomplete = () => resolve(records.length);
+    t.oncomplete = () => {
+      for (const record of records) notifyDirty('sets', record.syncId, 'put');
+      resolve(records.length);
+    };
     t.onerror = e => reject(e.target.error);
     t.onabort = e => reject(e.target.error);
   });
 }
 
-export const deleteSet = id => del('sets', id);
+export async function deleteSet(id) {
+  const set = await get('sets', id);
+  const syncId = set?.syncId;
+  await del('sets', id);
+  if (syncId) notifyDirty('sets', syncId, 'delete');
+}
 
 // Delete every set in a circuit (all sets sharing a groupId).
 export async function deleteSetsByGroup(groupId) {
   const sets = await getSets();
-  const ids = sets.filter(s => s.groupId === groupId).map(s => s.id);
-  for (const id of ids) await deleteSet(id);
+  const ids = [];
+  for (const s of sets) {
+    if (s.groupId !== groupId) continue;
+    if (s.syncId) notifyDirty('sets', s.syncId, 'delete');
+    ids.push(s.id);
+  }
+  for (const id of ids) await del('sets', id);
   return ids.length;
 }
 
@@ -276,8 +329,10 @@ export async function getEquipment() {
 }
 
 export async function saveEquipment({ barWeight, plates }) {
-  await put('equipment', { id: 'barWeight', value: barWeight });
-  await put('equipment', { id: 'plates', value: plates });
+  const ts = new Date().toISOString();
+  await put('equipment', { id: 'barWeight', value: barWeight, updatedAt: ts });
+  await put('equipment', { id: 'plates', value: plates, updatedAt: ts });
+  notifyDirty('equipment', 'equipment', 'put');
 }
 
 // ── Preferences ────────────────────────────────────────────
@@ -363,13 +418,18 @@ export async function getFuelLogsForDate(date) {
 }
 
 export async function addFuelLog(payload) {
-  const record = normalizeFuelLog(payload);
+  const record = { ...normalizeFuelLog(payload), updatedAt: new Date().toISOString() };
   const { ok, error } = validateFuelLog(record);
   if (!ok) throw new Error(error);
-  return fuelPut('fuel_logs', record);
+  await fuelPut('fuel_logs', record);
+  notifyDirty('fuel_logs', record.id, 'put');
+  return record.id;
 }
 
-export const deleteFuelLog = id => fuelDel('fuel_logs', id);
+export async function deleteFuelLog(id) {
+  await fuelDel('fuel_logs', id);
+  notifyDirty('fuel_logs', id, 'delete');
+}
 
 export async function getWaterLog(date) {
   const db = await openFuelDB();
@@ -381,7 +441,10 @@ export async function getWaterLog(date) {
 }
 
 export async function setWaterGlasses(date, glasses) {
-  return fuelPut('water_logs', normalizeWaterLog({ date, glasses }));
+  const record = { ...normalizeWaterLog({ date, glasses }), updatedAt: new Date().toISOString() };
+  await fuelPut('water_logs', record);
+  notifyDirty('water_logs', record.date, 'put');
+  return record;
 }
 
 export async function adjustWater(date, delta) {
@@ -405,4 +468,32 @@ export async function clearFuelDB() {
       req.onerror = e => rej(e.target.error);
     })
   ));
+}
+
+
+// ── Raw access — used only by the sync engine ─────────────
+// No normalization, no stamping. The sync engine inspects and rewrites
+// records directly where LWW demands it.
+export function syncRawAll(storeName) {
+  return all(storeName);            // iron-log DB (exercises / sets / equipment / preferences)
+}
+
+export function syncRawPut(storeName, value) {
+  return put(storeName, value);
+}
+
+export function syncRawDel(storeName, key) {
+  return del(storeName, key);
+}
+
+export function syncFuelRawAll(storeName) {
+  return fuelAll(storeName);
+}
+
+export function syncFuelRawPut(storeName, value) {
+  return fuelPut(storeName, value);
+}
+
+export function syncFuelRawDel(storeName, key) {
+  return fuelDel(storeName, key);
 }
