@@ -18,7 +18,139 @@ export const PORTION_MACROS = Object.freeze({
   caloriesPerFat: 9,
 });
 
+export const PORTION_KEYS = Object.freeze(['palms', 'fists', 'cupped', 'thumbs']);
+
+export const PORTION_EXAMPLES = Object.freeze({
+  palms: 'meat, fish, eggs, tofu, beans',
+  fists: 'vegetables and fruit',
+  cupped: 'rice, oats, potatoes, bread',
+  thumbs: 'oil, nuts, seeds, avocado',
+});
+
+export const PORTION_LABELS = Object.freeze({
+  palms: ['palm', 'palms'],
+  fists: ['fist', 'fists'],
+  cupped: ['cupped', 'cupped'],
+  thumbs: ['thumb', 'thumbs'],
+});
+
+// Embedded meal templates: a starting point, not a prescription. Each one
+// pre-fills the normal hand-portion modal, so the user can adjust before saving.
+export const MEAL_TEMPLATES = Object.freeze([
+  {
+    id: 'eggs-toast',
+    name: 'Eggs & toast',
+    portions: { palms: 2, fists: 0, cupped: 2, thumbs: 1 },
+    wholeFood: true,
+    note: 'Eggs, wholegrain toast, butter or oil',
+  },
+  {
+    id: 'chicken-rice-bowl',
+    name: 'Chicken rice bowl',
+    portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
+    wholeFood: true,
+    note: 'Chicken, rice, mixed veg, olive oil',
+  },
+  {
+    id: 'salmon-potato',
+    name: 'Salmon & potatoes',
+    portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
+    wholeFood: true,
+    note: 'Salmon, potatoes, greens',
+  },
+  {
+    id: 'yoghurt-berries',
+    name: 'Yoghurt & berries',
+    portions: { palms: 1, fists: 1, cupped: 1, thumbs: 0 },
+    wholeFood: true,
+    note: 'Greek yoghurt, berries, oats',
+  },
+  {
+    id: 'tofu-stirfry',
+    name: 'Tofu stir-fry',
+    portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
+    wholeFood: true,
+    note: 'Tofu, mixed veg, rice, sesame oil',
+  },
+  {
+    id: 'beans-toast',
+    name: 'Beans on toast',
+    portions: { palms: 1, fists: 2, cupped: 2, thumbs: 1 },
+    wholeFood: true,
+    note: 'Beans, wholegrain toast, olive oil',
+  },
+  {
+    id: 'oats-peanut-butter',
+    name: 'Oats & peanut butter',
+    portions: { palms: 1, fists: 0, cupped: 2, thumbs: 1 },
+    wholeFood: true,
+    note: 'Oats, milk or yoghurt, peanut butter',
+  },
+]);
+
 const clampCount = n => Math.max(0, Math.floor(Number.isFinite(Number(n)) ? Number(n) : 0));
+
+export function describePortions(portions = {}) {
+  const parts = [];
+  for (const key of PORTION_KEYS) {
+    const count = clampCount(portions?.[key]);
+    if (count === 0) continue;
+    const [single, plural] = PORTION_LABELS[key];
+    parts.push(`${count} ${count === 1 ? single : plural}`);
+  }
+  return parts.join(' · ') || 'No portions';
+}
+
+// A rough next-week shopping guide in hand portions. It averages the days
+// that were actually logged, then scales to the requested span, so a sparse
+// week does not look like a full one. Deliberately not a target.
+export function weeklyHandPortions(logs, endDate, days = 7) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(endDate ?? ''))) return null;
+  const span = Math.max(1, Math.floor(Number(days) || 7));
+  const start = shiftDateStr(endDate, -(span - 1));
+
+  const inRange = (logs || []).filter(log =>
+    log?.date
+    && /^\d{4}-\d{2}-\d{2}$/.test(log.date)
+    && log.date >= start
+    && log.date <= endDate
+  );
+
+  const totals = Object.fromEntries(PORTION_KEYS.map(key => [key, 0]));
+  const dates = new Set();
+  let whole = 0;
+
+  for (const log of inRange) {
+    dates.add(log.date);
+    for (const key of PORTION_KEYS) totals[key] += clampCount(log.handPortions?.[key]);
+    if (log.isWholeFood) whole += 1;
+  }
+
+  const loggedDays = dates.size;
+  const projected = Object.fromEntries(PORTION_KEYS.map(key => [
+    key,
+    loggedDays ? Math.ceil((totals[key] / loggedDays) * span) : 0,
+  ]));
+
+  return {
+    days: span,
+    start,
+    end: endDate,
+    logs: inRange.length,
+    loggedDays,
+    totals,
+    projected,
+    wholeShare: inRange.length ? Math.round((whole / inRange.length) * 100) : null,
+  };
+}
+
+function shiftDateStr(dateStr, delta) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr ?? ''));
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + delta));
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
 
 export function calcHandPortions({ palms = 0, fists = 0, cupped = 0, thumbs = 0 } = {}) {
   const p = clampCount(palms), f = clampCount(fists), c = clampCount(cupped), t = clampCount(thumbs);

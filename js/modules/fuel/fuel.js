@@ -4,8 +4,12 @@
 
 import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { todayStr } from '../../kernel/helpers.js';
-import { getFuelLogsForDate, addFuelLog, deleteFuelLog, getWaterLog, adjustWater, getPref } from '../../db.js';
-import { calcHandPortions, getDailyMythCard, getRandomMythCard } from '../../fuel.js';
+import { getFuelLogs, addFuelLog, deleteFuelLog, getWaterLog, adjustWater, getPref } from '../../db.js';
+import {
+  calcHandPortions, getDailyMythCard, getRandomMythCard,
+  MEAL_TEMPLATES, PORTION_KEYS, PORTION_LABELS, PORTION_EXAMPLES,
+  describePortions, weeklyHandPortions,
+} from '../../fuel.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
 
@@ -16,13 +20,63 @@ const WATER_TARGET = 8;
 const PROTEIN_TARGET_OPTIONS = [80, 120, 140, 160, 180, 200];
 const FUEL_PORTIONS = ['palms', 'fists', 'cupped', 'thumbs'];
 
+function templatesCardHtml() {
+  return `
+    <div class="card meal-templates-card">
+      <div class="card-head">
+        <div class="card-label" style="margin-bottom:0">Meal templates</div>
+        <button type="button" class="btn btn-ghost" style="font-size:12px;padding:4px 8px" onclick="openFuelModal()">Custom</button>
+      </div>
+      <p class="meal-templates-blurb">Tap a template to prefill the hand portions, then adjust and save.</p>
+      <div class="meal-template-grid">
+        ${MEAL_TEMPLATES.map(template => `
+          <button type="button" class="meal-template" onclick="openFuelTemplate('${template.id}')">
+            <span class="meal-template-name">${template.name}</span>
+            <span class="meal-template-portions">${describePortions(template.portions)}</span>
+          </button>`).join('')}
+      </div>
+      <div class="meal-templates-note">A palm is protein, a fist is vegetables, a cupped hand is carbs, a thumb is fat.</div>
+    </div>`;
+}
+
+function shoppingCardHtml(allLogs, today) {
+  const week = weeklyHandPortions(allLogs, today, 7);
+  if (!week) return '';
+  if (!week.loggedDays) {
+    return `
+      <div class="card shopping-card">
+        <div class="card-label">Next week's hand portions</div>
+        <p class="shopping-blurb">Log a few meals and Pulse will turn your last seven days into a rough shopping guide.</p>
+        <div class="shopping-empty">No meals logged in the last 7 days.</div>
+      </div>`;
+  }
+  return `
+    <div class="card shopping-card">
+      <div class="card-head">
+        <div class="card-label" style="margin-bottom:0">Next week's hand portions</div>
+        <span class="shopping-tag">${week.loggedDays} day${week.loggedDays === 1 ? '' : 's'} logged</span>
+      </div>
+      <p class="shopping-blurb">A rough guide from your last 7 days. Not a target.</p>
+      <div class="shopping-grid">
+        ${PORTION_KEYS.map(key => `
+          <div class="shopping-item">
+            <div class="shopping-count">${week.projected[key]}</div>
+            <div class="shopping-label">${PORTION_LABELS[key][1]}</div>
+            <div class="shopping-example">${PORTION_EXAMPLES[key]}</div>
+          </div>`).join('')}
+      </div>
+      <div class="shopping-foot">${week.logs} meal${week.logs === 1 ? '' : 's'} logged${week.wholeShare !== null ? ` · ${week.wholeShare}% whole food` : ''}.</div>
+    </div>`;
+}
+
 async function renderFuel(el) {
   const today = todayStr();
-  const [logs, water, proteinTarget] = await Promise.all([
-    getFuelLogsForDate(today),
+  const [allLogs, water, proteinTarget] = await Promise.all([
+    getFuelLogs(),
     getWaterLog(today),
     getPref('proteinTarget', 140),
   ]);
+  const logs = allLogs.filter(log => log.date === today);
   logs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));   // newest first
 
   const protein = logs.reduce((sum, l) => sum + l.proteinGrams, 0);
@@ -75,6 +129,8 @@ async function renderFuel(el) {
       </div>
     </div>
 
+    ${templatesCardHtml()}
+
     <div class="myth-card">
       <div class="myth-badge">Myth Buster</div>
       <div class="myth-text">“${myth.myth}”</div>
@@ -102,7 +158,9 @@ async function renderFuel(el) {
                 <button class="btn btn-ghost" style="padding:4px;font-size:18px;color:var(--text-3)" onclick="deleteFuelEntry('${l.id}')" aria-label="Delete entry">✕</button>
               </div>
             </div>`).join('')}
-    </div>`;
+    </div>
+
+    ${shoppingCardHtml(allLogs, today)}`;
 }
 
 // ── Fuel modal: hand-portion estimator ──────────────────────
@@ -122,16 +180,26 @@ function renderFuelEstimate() {
   document.getElementById('fuel-whole-hint').textContent = fuelWholeFood ? 'Minimally processed' : 'Ultra-processed / packaged';
 }
 
-window.openFuelModal = function() {
-  fuelPortions = { palms: 0, fists: 0, cupped: 0, thumbs: 0 };
-  fuelWholeFood = true;
-  document.getElementById('fuel-notes').value = '';
+function openFuelModalWith(portions, wholeFood, note = '') {
+  fuelPortions = { palms: 0, fists: 0, cupped: 0, thumbs: 0, ...portions };
+  fuelWholeFood = Boolean(wholeFood);
+  document.getElementById('fuel-notes').value = note;
   renderFuelEstimate();
   const modal = document.getElementById('fuel-modal');
   trapDialog(modal, () => window.closeFuelModal());
   openDialog(modal, {
     initialFocus: () => document.querySelector('#fuel-modal .portion-stepper button'),
   });
+}
+
+window.openFuelModal = function() {
+  openFuelModalWith({ palms: 0, fists: 0, cupped: 0, thumbs: 0 }, true, '');
+};
+
+window.openFuelTemplate = function(id) {
+  const template = MEAL_TEMPLATES.find(item => item.id === id);
+  if (!template) return;
+  openFuelModalWith(template.portions, template.wholeFood, template.name);
 };
 
 window.closeFuelModal = function() {
