@@ -1,5 +1,5 @@
 // ── Starter programmes ─────────────────────────────────────
-// Three embedded plans, expressed in the same shape the Planner already
+// Six embedded plans, expressed in the same shape the Planner already
 // understands: a list of movement blocks, each with percentage-of-1RM sets.
 // Pure data and date-free helpers only — the UI module owns persistence,
 // navigation and the actual planner hand-off.
