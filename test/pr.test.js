@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { metricPR, metricPRs } from '../js/pr.js';
+import { metricPR, metricPRs, countPRSets } from '../js/pr.js';
 
 const SETS = [
   // strength + timed + distance composite (rower)
@@ -63,4 +63,88 @@ test('metricPRs reports one entry per declared metric present in the sets', () =
   assert.deepEqual(Object.keys(out).sort(), ['distance', 'timed']);   // no strength data → no strength entry
   assert.equal(out.distance.value, 5000);
   assert.equal(out.timed.value, 400);
+});
+
+// ── "PRs today" counting ───────────────────────────────────
+const TODAY = '2026-11-07';
+
+test('countPRSets counts a first-ever set for every metric', () => {
+  const today = [
+    { id: 101, exerciseId: 1, type: 'strength', weight: 135, reps: 5, date: TODAY },
+    { id: 102, exerciseId: 9, type: 'output', output: 8, date: TODAY },
+    { id: 103, exerciseId: 7, type: 'timed', duration: 20, date: TODAY },
+  ];
+  assert.equal(countPRSets(today), 3);
+});
+
+test('countPRSets ignores a set that does not beat the history', () => {
+  const history = [
+    { id: 1, exerciseId: 1, type: 'strength', weight: 185, reps: 5, date: '2026-11-01' },
+    { id: 2, exerciseId: 9, type: 'output', output: 12, date: '2026-11-01' },
+    { id: 3, exerciseId: 7, type: 'timed', duration: 18, date: '2026-11-01' },
+  ];
+  const today = [
+    { id: 11, exerciseId: 1, type: 'strength', weight: 135, reps: 5, date: TODAY },
+    { id: 12, exerciseId: 9, type: 'output', output: 8, date: TODAY },
+    { id: 13, exerciseId: 7, type: 'timed', duration: 20, date: TODAY },
+  ];
+  assert.equal(countPRSets(today, [...history, ...today]), 0);
+});
+
+test('countPRSets catches rep-count, hold and distance PRs from quick sessions', () => {
+  const history = [
+    { id: 1, exerciseId: 9, type: 'output', output: 8, date: '2026-11-01' },
+    { id: 2, exerciseId: 7, type: 'timed', duration: 40, date: '2026-11-01' },
+    { id: 3, exerciseId: 8, type: 'distance', distance: 2000, date: '2026-11-01' },
+  ];
+  const today = [
+    { id: 11, exerciseId: 9, type: 'output', output: 12, date: TODAY },
+    { id: 12, exerciseId: 7, type: 'timed', duration: 30, date: TODAY },
+    { id: 13, exerciseId: 8, type: 'distance', distance: 2500, date: TODAY },
+  ];
+  assert.equal(countPRSets(today, [...history, ...today]), 3);
+});
+
+test('countPRSets counts a composite set once even when two metrics improve', () => {
+  const history = [
+    { id: 1, exerciseId: 7, type: 'distance', distance: 2000, duration: 420, date: '2026-11-01' },
+  ];
+  const today = [
+    { id: 11, exerciseId: 7, type: 'distance', distance: 5000, duration: 400, date: TODAY },
+  ];
+  assert.equal(countPRSets(today, [...history, ...today]), 1);
+});
+
+test('countPRSets sees a best-volume PR at a non-tier rep count', () => {
+  const history = [
+    { id: 1, exerciseId: 1, type: 'strength', weight: 150, reps: 5, date: '2026-11-01' },   // 750 volume
+  ];
+  const today = [
+    { id: 11, exerciseId: 1, type: 'strength', weight: 100, reps: 8, date: TODAY },          // 800 volume
+  ];
+  assert.equal(countPRSets(today, [...history, ...today]), 1);
+});
+
+test('countPRSets honours the PR window with an all-time fallback', () => {
+  const history = [
+    { id: 1, exerciseId: 9, type: 'output', output: 20, date: '2026-01-01' },
+    { id: 2, exerciseId: 9, type: 'output', output: 8, date: '2026-11-01' },
+  ];
+  const today = [
+    { id: 11, exerciseId: 9, type: 'output', output: 10, date: TODAY },
+  ];
+  // Inside the window, 10 beats 8, so it counts.
+  assert.equal(countPRSets(today, [...history, ...today], '2026-10-01'), 1);
+  // Across all time, 20 still leads, so it does not.
+  assert.equal(countPRSets(today, [...history, ...today], null), 0);
+});
+
+test('countPRSets does not leak PRs across exercises', () => {
+  const history = [
+    { id: 1, exerciseId: 9, type: 'output', output: 20, date: '2026-11-01' },
+  ];
+  const today = [
+    { id: 11, exerciseId: 10, type: 'output', output: 10, date: TODAY },
+  ];
+  assert.equal(countPRSets(today, [...history, ...today]), 1);
 });

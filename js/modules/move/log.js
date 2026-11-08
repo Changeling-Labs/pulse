@@ -1,11 +1,13 @@
 // ── Pulse Move: Log tab ──────────────────────────────────
 import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { dw, fmtDate, todayStr, fmtDuration, sinceDate } from '../../kernel/helpers.js';
-import { getSets, getAllPRs, deleteSet, deleteSetsByGroup, getPref } from '../../db.js';
+import { getSets, deleteSet, deleteSetsByGroup, getPref } from '../../db.js';
 import { groupByCircuit } from '../../circuits.js';
+import { countPRSets } from '../../pr.js';
 import { PRESETS, HOLD_ROUTINES } from '../../intervals.js';
 import { formatClock } from '../../timer.js';
 import { openLogModal } from './modal.js';
+import { quickCardHtml } from './quick.js';
 import { displayDistance } from '../../calc.js';
 
 function setDetail(s) {
@@ -13,7 +15,11 @@ function setDetail(s) {
   if (Number.isFinite(s.reps)) parts.push(`${s.reps} rep${s.reps !== 1 ? 's' : ''}`);
   if (Number.isFinite(s.duration)) parts.push(fmtDuration(s.duration));
   if (Number.isFinite(s.distance)) parts.push(displayDistance(s.distance, state.unit));
-  if (Number.isFinite(s.output)) parts.push(`${s.output} output`);
+  if (Number.isFinite(s.output)) {
+    parts.push(s.unitLabel === 'reps'
+      ? `${s.output} rep${s.output !== 1 ? 's' : ''}`
+      : `${s.output} output`);
+  }
   return parts.join(' · ') || '—';
 }
 
@@ -78,36 +84,35 @@ async function renderLog(el) {
   const today = todayStr();
   const todaySets = allSets.filter(s => s.date === today).reverse();
 
-  let prCount = 0;
-  for (const s of todaySets) {
-    if (!Number.isFinite(s.weight) || !Number.isFinite(s.reps)) continue;   // weight PRs only
-    const prs = await getAllPRs(s.exerciseId, sinceDate());
-    if (prs[s.reps] === s.weight) prCount++;
-  }
+  // Any metric can set a PR: weight tiers, best volume, reps, holds, distance.
+  // Composite sets count once, and the calculation reuses the sets we already
+  // loaded — no extra database reads.
+  const prCount = countPRSets(todaySets, allSets, sinceDate());
 
   const exMap = Object.fromEntries(state.exercises.map(e => [e.id, e.name]));
   const blocks = groupByCircuit(todaySets);
 
   const setsHtml = blocks.length === 0
-    ? `<div class="empty"><div class="icon">🏋️</div><p>No sets logged today yet.</p></div>`
+    ? `<div class="empty"><div class="icon">💪</div><p>Nothing logged today yet. Start with a quick session above, or tap + for a set.</p></div>`
     : blocks.map(block =>
         block.groupId ? circuitBlockHtml(block, exMap) : setRowHtml(block.items[0], exMap)
       ).join('');
 
   el.innerHTML = `
+    ${await quickCardHtml()}
     <div class="stat-grid">
       <div class="stat"><div class="stat-val">${todaySets.length}</div><div class="stat-lbl">sets today</div></div>
       <div class="stat"><div class="stat-val">${new Set(todaySets.map(s => s.exerciseId)).size}</div><div class="stat-lbl">exercises</div></div>
       <div class="stat"><div class="stat-val accent">${prCount}</div><div class="stat-lbl">PRs today</div></div>
     </div>
-    ${await intervalCardHtml()}
     <div class="card">
       <div class="card-head">
         <div class="card-label">Today · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
         <button class="btn btn-ghost rest-start" onclick="startRest()">⏱ Rest</button>
       </div>
       ${setsHtml}
-    </div>`;
+    </div>
+    ${await intervalCardHtml()}`;
 
 }
 
@@ -127,9 +132,12 @@ function setRowHtml(s, exMap) {
 }
 
 // A circuit (superset): the sets sharing one groupId, shown round by round.
+// Quick sessions share the same shape but are not a timed run — they are a
+// self-paced checklist, so the runner button is hidden.
 function circuitBlockHtml(block, exMap) {
   const exerciseCount = new Set(block.items.map(s => s.exerciseId)).size;
   const rest = block.restSec ? ` · ${formatClock(block.restSec * 1000)} rest` : '';
+  const isQuick = block.items.some(s => s.source === 'quick');
   const rows = block.items.map(s => `
     <div class="circuit-row">
       <span class="circuit-round">R${s.round ?? 1}</span>
@@ -142,11 +150,11 @@ function circuitBlockHtml(block, exMap) {
     <div class="circuit-block">
       <div class="circuit-head">
         <div>
-          <span class="circuit-title">Circuit</span>
+          <span class="circuit-title">${isQuick ? 'Quick session' : 'Circuit'}</span>
           <span class="circuit-meta">${block.rounds} round${block.rounds !== 1 ? 's' : ''} · ${exerciseCount} exercises${rest}</span>
         </div>
         <div class="circuit-actions">
-          <button class="btn btn-ghost circuit-run" onclick="runCircuit('${block.groupId}')">▶ Run</button>
+          ${isQuick ? '' : `<button class="btn btn-ghost circuit-run" onclick="runCircuit('${block.groupId}')">▶ Run</button>`}
           <button class="btn btn-ghost circuit-delete" onclick="deleteCircuit('${block.groupId}')">Delete</button>
         </div>
       </div>
@@ -168,4 +176,4 @@ window.deleteCircuit = async function(groupId) {
 
 
 
-registerTab('log', { title: 'Pulse', fabLabel: 'Log a set', fabAction: () => openLogModal(), render: renderLog });
+registerTab('log', { title: 'Move', fabLabel: 'Log a set', fabAction: () => openLogModal(), render: renderLog });
