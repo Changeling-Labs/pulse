@@ -1114,6 +1114,50 @@ body.rest-active #content { padding-bottom: 104px; }
 
 .storage-banner-actions .btn { flex: 1; min-width: 140px; }
 
+.install-hint {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--nav-h) + 12px);
+  z-index: 240;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border: 1px solid var(--brand-hi);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.install-hint-copy {
+  flex: 1;
+  min-width: 170px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.install-hint-copy b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.install-hint-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.install-hint-actions .btn {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
 .storage-banner-status {
   min-height: 14px;
   margin-top: 8px;

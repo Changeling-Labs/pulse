@@ -3,6 +3,7 @@
 import { boot, registerInit } from './kernel/shell.js';
 import { initA11y } from './kernel/a11y.js';
 import { installErrorHandlers, renderBootError } from './kernel/errors.js';
+import { initInstallHint } from './install.js';
 import { initSync } from './sync.js';
 import './modules/move/timer.js';
 import './modules/move/shared.js';
@@ -21,6 +22,7 @@ registerInit(() => initSync().catch(err => console.warn('sync unavailable, stayi
 
 initA11y();
 installErrorHandlers();
+initInstallHint();
 boot().catch(err => {
   console.error('Pulse failed to start:', err);
   renderBootError(err);

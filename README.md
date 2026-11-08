@@ -6,7 +6,7 @@ Pulse is a local-first health app for the three habits that change healthspan: *
 
 **Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
 
-Status: shipped and actively developed — **v2.20.0**, 267 tests, Lighthouse 100/100/100. MIT licensed.
+Status: shipped and actively developed — **v2.21.1**, 272 tests, Lighthouse 100/100/100. MIT licensed.
 
 ## Why people use it
 
@@ -125,6 +125,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Fuel: meal templates + weekly hand portions (v2.19.0)** — seven embedded meal templates prefill the normal hand-portion modal (eggs & toast, chicken rice bowl, salmon & potatoes, yoghurt & berries, tofu stir-fry, beans on toast, oats & peanut butter). A **Next week's hand portions** card turns the last seven days of logs into a rough shopping guide — projected palms/fists/cupped/thumbs, days logged, whole-food share — with examples and a clear "not a target" note. No new store, no network.
 - [x] **Recover: wind-down + sleep notes (v2.20.0)** — two Recover-only hold routines (**Evening wind-down**, 6 holds / 5 min; **Desk reset**, 4 holds / 3 min) launch the existing interval runner. A daily **Sleep note** card rotates through eight conservative sleep-hygiene cards with an "Another" button and a permanent "General sleep hygiene — not medical advice" line. Embedded and offline.
 - [x] **Move + myth content (v2.21.0)** — three more starter programmes (**2-day full body**, **Push / pull / legs**, **5×5 strength base**), bringing the library to six. Six more conservative myth cards (breakfast, detox, gluten-free, frozen produce, supplements, organic) bring Fuel to 16; the review sheet marks all new cards as AI-assisted and still pending clinician sign-off.
+- [x] **Distribution polish (v2.21.1)** — a Pulse-only, dismissible install hint (Chrome native prompt or iOS Share → Add to Home Screen) with a 30-day dismissal; hub crawl files (`robots.txt`, `sitemap.xml`); GitHub homepage, description and topics set.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -151,6 +152,7 @@ pulse/
       helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
       a11y.js       # Dialog focus trap/inert/Escape + reduced-motion helper
       errors.js     # Storage/boot error classification + export escape hatch
+    install.js      # Pulse-only install hint (native prompt / iOS instructions)
     modules/
       move/         # log.js (Move shell: Today | Programs | Planner),
                     # quick.js (daily + Just move sessions), programme.js
@@ -238,6 +240,7 @@ The nav reads **Fuel → Move → Recover → Progress → Settings**: eat, move
 
 - **Keyboard path.** A **Skip to content** link, visible focus rings on every interactive control, `aria-current="page"` on the active nav tab, and labels on every icon-only button.
 - **Dialogs.** The log, fuel, quick-session and interval overlays are `inert` and `aria-hidden` while closed, trap Tab while open, close on Escape, and restore focus to the trigger. Focus moves into the first field or the session panel on open.
+- **Install hint.** On a phone, Pulse shows one small, dismissible install hint — Chrome's native prompt where available, or Apple's Share → Add to Home Screen instruction on iOS. It dismisses for 30 days and never appears on the hub.
 - **Reduced motion.** Confetti is skipped entirely when `prefers-reduced-motion: reduce` is set, and the existing CSS block collapses transitions and animations. There are no timer pulse or chart animations to disable.
 - **Contrast.** `--text-3` on `--surface` is **5.54:1**, on `--surface-2` **4.99:1**; `--text-2` is **6.99:1** or better; active metric chips are **9.09:1**. All pass WCAG AA for normal text.
 - **Failure paths.** `js/kernel/errors.js` classifies quota and database failures. A save failure shows an assertive banner with **Export backup now**; a boot failure replaces the loading screen with a card offering Reload and the same export escape hatch. The database is never silently lost.
