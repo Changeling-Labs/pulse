@@ -132,7 +132,7 @@ async function renderSettings(el) {
               ${SET_TYPES.map(m => `<button type="button" class="metric-chip${e.metrics.includes(m) ? ' active' : ''}" onclick="toggleExerciseMetric(${e.id}, '${m}')">${METRIC_LABELS[m]}</button>`).join('')}
             </div>
           </div>
-          <button class="btn btn-ghost" style="color:var(--text-3);font-size:18px" onclick="deleteEx(${e.id})">✕</button>
+          <button class="btn btn-ghost" style="color:var(--text-3);font-size:18px" aria-label="Delete exercise" onclick="deleteEx(${e.id})">✕</button>
         </div>`).join('')}
       <button class="btn btn-ghost" style="padding:4px 0;margin-top:6px" onclick="openAddExercise()">+ Add exercise</button>
     </div>
@@ -253,7 +253,7 @@ function renderPlateEditor() {
       <input type="number" value="${p.weight}" style="width:70px;text-align:right" onchange="updatePlate(${i},'weight',this.value)" /> lb
       <span style="color:var(--text-2);font-size:13px">×</span>
       <input type="number" value="${p.count}" min="0" max="20" style="width:50px;text-align:center" onchange="updatePlate(${i},'count',this.value)" />
-      <button class="btn btn-ghost" style="color:var(--text-3)" onclick="removePlate(${i})">✕</button>
+      <button class="btn btn-ghost" style="color:var(--text-3)" aria-label="Remove plate size" onclick="removePlate(${i})">✕</button>
     </div>`).join('');
 }
 

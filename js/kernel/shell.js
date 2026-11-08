@@ -53,8 +53,17 @@ export function registerInit(fn) { inits.push(fn); }
 
 export function switchTab(tab) {
   state.tab = tab;
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  setActiveNav(tab);
   return renderTab(tab);
+}
+
+function setActiveNav(tab) {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.classList.toggle('active', active);
+    if (active) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
 }
 
 export async function renderTab(tab) {
@@ -107,5 +116,6 @@ export async function boot() {
   for (const init of inits) await init();
 
   await renderTab('log');
+  setActiveNav('log');
   setupNav();
 }

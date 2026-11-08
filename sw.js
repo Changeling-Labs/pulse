@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v24';
+const CACHE = 'pulse-v25';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const ASSETS = [
   './js/app.js',
   './js/kernel/helpers.js',
   './js/kernel/shell.js',
+  './js/kernel/a11y.js',
+  './js/kernel/errors.js',
   './js/modules/move/shared.js',
   './js/modules/move/log.js',
   './js/modules/move/modal.js',

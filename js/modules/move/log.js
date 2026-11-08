@@ -344,7 +344,7 @@ function setRowHtml(s, exMap) {
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="log-weight">${setPrimary(s)}</div>
-        <button class="btn btn-ghost" style="padding:4px;font-size:18px;color:var(--text-3)" onclick="deleteSetItem(${s.id})">✕</button>
+        <button class="btn btn-ghost" style="padding:4px;font-size:18px;color:var(--text-3)" aria-label="Delete set" onclick="deleteSetItem(${s.id})">✕</button>
       </div>
     </div>`;
 }
@@ -392,4 +392,4 @@ window.deleteCircuit = async function(groupId) {
   renderTab('log');
 };
 
-registerTab('log', { title: 'Move', fabLabel: 'Log a set', fabText: 'Log set', fabAction: () => openLogModal(), render: renderMove });
+registerTab('log', { title: 'Move', fabLabel: 'Log set', fabText: 'Log set', fabAction: () => openLogModal(), render: renderMove });

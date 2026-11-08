@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Pulse — a local-first health app for strength, movement, nutrition and recovery." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="Pulse" />
@@ -15,6 +16,8 @@
 </head>
 <body>
 
+<a class="skip-link" href="#content">Skip to content</a>
+
 <div id="app">
   <header id="header">
     <button id="header-back" aria-label="Go back">‹</button>
@@ -23,7 +26,7 @@
     <button id="header-action" aria-label="More options" class="hidden">⋯</button>
   </header>
 
-  <main id="content" aria-live="polite">
+  <main id="content" aria-live="polite" tabindex="-1">
     <div class="empty"><p>Loading…</p></div>
   </main>
 
@@ -46,7 +49,7 @@
   </nav>
 </div>
 
-<button id="fab" aria-label="Log a set"><span class="fab-plus" aria-hidden="true">＋</span><span class="fab-text" id="fab-text"></span></button>
+<button id="fab" aria-label="Log set"><span class="fab-text" id="fab-text"></span></button>
 
 <!-- Rest timer bar: shown while a rest is counting down -->
 <div class="rest-bar hidden" id="rest-bar">
@@ -65,7 +68,7 @@
 </div>
 
 <!-- Log set modal -->
-<div class="modal-overlay" id="log-modal" role="dialog" aria-modal="true" aria-label="Log a set">
+<div class="modal-overlay" id="log-modal" role="dialog" aria-modal="true" aria-label="Log a set" aria-hidden="true">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-title">Log a set</div>
@@ -120,7 +123,7 @@
 </div>
 
 <!-- Fuel modal: hand-portion estimator + whole-food flag -->
-<div class="modal-overlay" id="fuel-modal" role="dialog" aria-modal="true" aria-label="Log fuel">
+<div class="modal-overlay" id="fuel-modal" role="dialog" aria-modal="true" aria-label="Log fuel" aria-hidden="true">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="fuel-modal-title">Log fuel</div>

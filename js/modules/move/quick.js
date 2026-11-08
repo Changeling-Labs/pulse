@@ -19,6 +19,8 @@ import { getPref, setPref, getExercises, addExercise, addSets } from '../../db.j
 import { newGroupId } from '../../circuits.js';
 import { formatClock } from '../../timer.js';
 import { primeAudio, cue } from '../../cues.js';
+import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
+import { handleSaveError } from '../../kernel/errors.js';
 import {
   TIME_OPTIONS, FOCUS, LEVELS, EQUIPMENT, IMPACT,
   focusById, levelById, equipmentById, impactById,
@@ -205,18 +207,27 @@ function ensureOverlay() {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-label', 'Quick session');
+  el.setAttribute('aria-hidden', 'true');
+  el.inert = true;
   el.innerHTML = overlayHtml();
+  trapDialog(el, () => {
+    if (!document.getElementById('quick-live').classList.contains('hidden')) {
+      window.endQuickSession();
+    } else {
+      window.closeQuickOverlay();
+    }
+  });
   document.body.appendChild(el);
   return el;
 }
 
 function showPane(pane) {
   const overlay = ensureOverlay();
-  overlay.classList.add('open');
   document.body.classList.add('quick-active');
   document.getElementById('quick-setup').classList.toggle('hidden', pane !== 'setup');
   document.getElementById('quick-live').classList.toggle('hidden', pane !== 'live');
   document.getElementById('quick-done').classList.toggle('hidden', pane !== 'done');
+  openDialog(overlay, { initialFocus: () => document.getElementById('quick-panel') });
 }
 
 function focusPanel() {
@@ -505,7 +516,7 @@ window.completeQuickRound = async function() {
   try {
     await saveCheckedRound();
   } catch (err) {
-    alert(err.message);
+    handleSaveError(err);
     btn.disabled = false;
     return;
   }
@@ -531,7 +542,7 @@ window.endQuickSession = async function() {
       await saveCheckedRound();
       doneRounds = Math.max(doneRounds, round);
     } catch (err) {
-      alert(err.message);
+      handleSaveError(err);
       return;
     }
   }
@@ -551,6 +562,7 @@ async function finishSession(finished) {
     `${doneRounds} round${doneRounds === 1 ? '' : 's'} · ${loggedSets} set${loggedSets === 1 ? '' : 's'} logged · ${elapsedMin} min`;
   document.getElementById('quick-fill').style.width = '100%';
   showPane('done');
+  document.querySelector('#quick-done button')?.focus({ preventScroll: true });
   if (finished) {
     cue('done');
     // Only a fully completed round list marks the day done. Ending early is
@@ -576,9 +588,18 @@ window.closeQuickOverlay = function() {
   checked = new Set();
   dailyMeta = null;
   const overlay = document.getElementById('quick-overlay');
-  if (overlay) overlay.classList.remove('open');
+  const restoreTo = overlay?._returnFocus;
+  if (overlay) closeDialog(overlay);
   document.body.classList.remove('quick-active');
-  if (state.tab === 'log') renderTab('log');
+  if (state.tab === 'log') {
+    renderTab('log').then(() => {
+      if (restoreTo && document.contains(restoreTo)) {
+        restoreTo.focus({ preventScroll: true });
+      } else {
+        document.getElementById('fab')?.focus({ preventScroll: true });
+      }
+    });
+  }
 };
 
 // From the summary: log the session, then go straight to the daily check-in.
@@ -586,17 +607,3 @@ window.openRecoverFromQuick = function() {
   window.closeQuickOverlay();
   switchTab('recover');
 };
-
-// Escape mirrors the interval runner: leave the current pane safely.
-if (typeof document !== 'undefined') {
-  document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    const overlay = document.getElementById('quick-overlay');
-    if (!overlay?.classList.contains('open')) return;
-    if (!document.getElementById('quick-live').classList.contains('hidden')) {
-      window.endQuickSession();
-    } else {
-      window.closeQuickOverlay();
-    }
-  });
-}

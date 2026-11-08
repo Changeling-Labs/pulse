@@ -13,6 +13,8 @@ import { getLastSetForExercise, addSet, addSets } from '../../db.js';
 import { newGroupId } from '../../circuits.js';
 import { metricsForExercise } from './shared.js';
 import { CIRCUIT_REST_OPTIONS } from './timer.js';
+import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
+import { handleSaveError } from '../../kernel/errors.js';
 
 window.stepField = function(scope, key, sign, step) {
   const el = scopeEl(scope, key);
@@ -339,13 +341,15 @@ export function openLogModal() {
   sel.innerHTML = state.exercises.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
   if (state.lastExerciseId) sel.value = String(state.lastExerciseId);
 
-  document.getElementById('log-modal').classList.add('open');
+  const modal = document.getElementById('log-modal');
+  trapDialog(modal, () => window.closeLogModal());
+  openDialog(modal, { initialFocus: () => document.getElementById('modal-exercise') });
   renderModalForExercise(parseInt(sel.value, 10));
   setLogMode('single');
 }
 
 window.closeLogModal = function() {
-  document.getElementById('log-modal').classList.remove('open');
+  closeDialog(document.getElementById('log-modal'));
 };
 
 window.onLogExerciseChange = function(val) {
@@ -399,7 +403,7 @@ window.submitLog = async function() {
   try {
     await addSet(payload);   // addSet validates the shape for the set's metric
   } catch (err) {
-    alert(err.message);
+    handleSaveError(err);
     return;
   }
 
@@ -436,7 +440,7 @@ async function submitCircuit() {
   try {
     await addSets(built.map(r => r.payload));
   } catch (err) {
-    alert(err.message);
+    handleSaveError(err);
     return;
   }
 

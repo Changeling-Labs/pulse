@@ -1,6 +1,8 @@
 // Lightweight confetti burst — no dependencies.
 // Call burst(x, y) with page coordinates to fire from that point.
 
+import { prefersReducedMotion } from './kernel/a11y.js';
+
 const COLORS = ['#1D9E75', '#5DCAA5', '#9FE1CB', '#FAC775', '#F0997B', '#85B7EB'];
 const PARTICLE_COUNT = 28;
 
@@ -9,6 +11,7 @@ function rand(min, max) {
 }
 
 export function burst(x, y) {
+  if (prefersReducedMotion()) return;
   const canvas = document.createElement('canvas');
   canvas.style.cssText = `
     position: fixed;

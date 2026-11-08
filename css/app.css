@@ -267,7 +267,12 @@ select:focus, input:focus { border-color: var(--brand-hi); }
   gap: 7px;
 }
 
-#fab .fab-plus { font-size: 22px; line-height: 1; margin-top: -1px; }
+#fab::before {
+  content: '＋';
+  font-size: 22px;
+  line-height: 1;
+  margin-top: -1px;
+}
 
 #fab .fab-text {
   display: none;
@@ -932,6 +937,105 @@ body.rest-active #content { padding-bottom: 104px; }
 :where(button, select, input, a, [role="button"]):focus-visible {
   outline: 2px solid var(--glow);
   outline-offset: 2px;
+}
+
+/* ── Accessibility: skip link + storage errors ───────── */
+.skip-link {
+  position: fixed;
+  top: -80px;
+  left: 12px;
+  z-index: 400;
+  padding: 10px 14px;
+  border: 1px solid var(--glow);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.skip-link:focus { top: 12px; }
+
+.storage-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--nav-h) + 12px);
+  z-index: 250;
+  display: none;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 14px;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.storage-banner.show { display: block; }
+
+.storage-banner-copy b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.storage-banner-copy span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.storage-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.storage-banner-actions .btn { flex: 1; min-width: 140px; }
+
+.storage-banner-status {
+  min-height: 14px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.error-card { border-color: rgba(248, 113, 113, 0.4); }
+
+.error-title {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.error-body {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.error-actions .btn { flex: 1; min-width: 140px; }
+
+.error-status {
+  min-height: 14px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-3);
 }
 
 /* ── Intervals: Log-tab card ─────────────────────────── */
@@ -1674,7 +1778,6 @@ body.interval-active { overflow: hidden; }
 }
 
 .recover-weight-input:focus {
-  outline: none;
   border-bottom-color: var(--glow);
 }
 

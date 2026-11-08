@@ -6,6 +6,8 @@ import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { todayStr } from '../../kernel/helpers.js';
 import { getFuelLogsForDate, addFuelLog, deleteFuelLog, getWaterLog, adjustWater, getPref } from '../../db.js';
 import { calcHandPortions, getDailyMythCard, getRandomMythCard } from '../../fuel.js';
+import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
+import { handleSaveError } from '../../kernel/errors.js';
 
 // ── Fuel Tab (Pulse Fuel) ─────────────────────────────────
 // Low-friction nutrition: one-tap hand portions, whole-food quality,
@@ -125,11 +127,15 @@ window.openFuelModal = function() {
   fuelWholeFood = true;
   document.getElementById('fuel-notes').value = '';
   renderFuelEstimate();
-  document.getElementById('fuel-modal').classList.add('open');
+  const modal = document.getElementById('fuel-modal');
+  trapDialog(modal, () => window.closeFuelModal());
+  openDialog(modal, {
+    initialFocus: () => document.querySelector('#fuel-modal .portion-stepper button'),
+  });
 };
 
 window.closeFuelModal = function() {
-  document.getElementById('fuel-modal').classList.remove('open');
+  closeDialog(document.getElementById('fuel-modal'));
 };
 
 window.adjustPortion = function(kind, delta) {
@@ -159,7 +165,7 @@ window.submitFuelLog = async function() {
       notes,
     });
   } catch (err) {
-    alert(err.message);
+    handleSaveError(err);
     return;
   }
   window.closeFuelModal();

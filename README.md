@@ -99,6 +99,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Move: strength path clarity (v2.15.1)** — after Today's move became the hero, the bare `+` no longer made it obvious that lifts could be logged. The Today pane gains a compact **Strength training** card with **Log a set** and **Log a circuit**, the bottom card becomes **Today's training** with a `＋ Log` action, the empty state has a real **Log your first lift** button, and the Move FAB is now an extended **＋ Log set** label. No data or schema change.
 - [x] **Move: starter programmes (v2.16.0)** — three embedded plans: **3-day full body** (4 weeks), **4-day upper / lower** (4 weeks), and a **6-week beginner** ramp. The Programs pane lists them; starting one loads the session into the Planner with a banner to mark it done. The Today pane shows the next unfinished session with **Continue where you left off**, and a first-run device sees the starter programme card instead of an empty prompt. Progress lives in the `moveProgramme` preference. `js/programmes.js` is pure and tested (10 tests); no DB version bump and no network call.
 - [x] **Move: adaptive generation (v2.17.0)** — exercises carry an additive `pattern` (push, pull, squat, hinge, carry, core, cardio, mobility) inferred from the name for older records. `js/adaptive.js` adds six goal profiles, weighs the largest real pattern gaps, and chooses today's focus. The card explains the choice in one sentence, shows days since each pattern, and swaps in mobility when the latest check-in has soreness ≥7 or sleep <6 — with **Do the usual session instead** as a one-tap override. Additive and offline: no DB version bump, no new store, no readiness score.
+- [x] **Accessibility + reliability pass (v2.18.0)** — skip link, visible keyboard focus rings, `aria-current` nav, labelled icon-only buttons, and dialogs that are inert while closed, trap Tab, close on Escape and restore focus. Reduced motion disables confetti and minimises CSS transitions. Storage failures get a friendly banner or boot card with **Export backup now**. Lighthouse: **100 Accessibility, 100 Best Practices, 100 SEO**. The physical screen-reader/device pass remains on the checklist.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -123,6 +124,8 @@ pulse/
     kernel/
       shell.js      # State, tab registry (registerTab/registerInit), routing, boot
       helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
+      a11y.js       # Dialog focus trap/inert/Escape + reduced-motion helper
+      errors.js     # Storage/boot error classification + export escape hatch
     modules/
       move/         # log.js (Move shell: Today | Programs | Planner),
                     # quick.js (daily + Just move sessions), programme.js
@@ -205,6 +208,15 @@ The **Just move** card generates a no-equipment circuit from a small library of 
 - **No new data model** — exercises are created lazily per prescribed variant (Incline push-up, Knee push-up, Push-up), so each variant keeps its own honest history and PR. The generator is pure (`js/movements.js`), seeded for repeatability, and makes no network call.
 
 The nav reads **Fuel → Move → Recover → Progress → Settings**: eat, move, adapt. Move remains the boot/landing tab and the FAB target even though it sits second.
+
+### Accessibility and reliability
+
+- **Keyboard path.** A **Skip to content** link, visible focus rings on every interactive control, `aria-current="page"` on the active nav tab, and labels on every icon-only button.
+- **Dialogs.** The log, fuel, quick-session and interval overlays are `inert` and `aria-hidden` while closed, trap Tab while open, close on Escape, and restore focus to the trigger. Focus moves into the first field or the session panel on open.
+- **Reduced motion.** Confetti is skipped entirely when `prefers-reduced-motion: reduce` is set, and the existing CSS block collapses transitions and animations. There are no timer pulse or chart animations to disable.
+- **Contrast.** `--text-3` on `--surface` is **5.54:1**, on `--surface-2` **4.99:1**; `--text-2` is **6.99:1** or better; active metric chips are **9.09:1**. All pass WCAG AA for normal text.
+- **Failure paths.** `js/kernel/errors.js` classifies quota and database failures. A save failure shows an assertive banner with **Export backup now**; a boot failure replaces the loading screen with a card offering Reload and the same export escape hatch. The database is never silently lost.
+- **Audit.** Lighthouse on the Move tab reports **100 Accessibility, 100 Best Practices, 100 SEO**. The physical VoiceOver/TalkBack and real-device rows live in the device checklist.
 
 ## Data model
 

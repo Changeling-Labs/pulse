@@ -157,7 +157,7 @@ export async function renderPlanner(el) {
             Movement ${bi + 1}
           </div>
           ${blockCount > 1
-            ? `<button onclick="removeBlock(${bi})"
+            ? `<button onclick="removeBlock(${bi})" aria-label="Remove movement"
                 style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>`
             : ''}
         </div>

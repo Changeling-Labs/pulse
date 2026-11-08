@@ -12,6 +12,7 @@
 import { formatClock } from '../../timer.js';
 import { getPref, setPref } from '../../db.js';
 import { primeAudio, cue } from '../../cues.js';
+import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import {
   getPreset, getHoldRoutine,
   blocksForIntervals, blocksForHolds,
@@ -82,7 +83,13 @@ function ensureOverlay() {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-label', 'Interval timer');
+  el.setAttribute('aria-hidden', 'true');
+  el.inert = true;
   el.innerHTML = overlayHtml();
+  trapDialog(el, () => {
+    if (run && !run.done) window.endIntervalRun();
+    else window.closeIntervalOverlay();
+  });
   document.body.appendChild(el);
   return el;
 }
@@ -156,14 +163,6 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && run && !run.done) acquireWakeLock();
   });
-
-  document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    const overlay = document.getElementById('interval-overlay');
-    if (!overlay?.classList.contains('open')) return;
-    if (run && !run.done) window.endIntervalRun();
-    else window.closeIntervalOverlay();
-  });
 }
 
 // ── Rendering ──────────────────────────────────────────────
@@ -208,11 +207,11 @@ function renderRun() {
 
 function showPane(pane) {
   const overlay = ensureOverlay();
-  overlay.classList.add('open');
   document.getElementById('interval-setup').classList.toggle('hidden', pane !== 'setup');
   document.getElementById('interval-live').classList.toggle('hidden', pane !== 'live');
   document.getElementById('interval-done').classList.toggle('hidden', pane !== 'done');
   document.body.classList.add('interval-active');
+  openDialog(overlay);
 }
 
 function statsLine(summary) {
@@ -234,6 +233,7 @@ function finishRun() {
   heading.textContent = summary.finished ? 'Session complete' : 'Session ended';
   document.getElementById('interval-done-stats').textContent = statsLine(summary);
   showPane('done');
+  document.querySelector('#interval-done button')?.focus({ preventScroll: true });
   cue('done');
 
   if (summary.finished) {
@@ -258,6 +258,7 @@ function startBlocks(blocks, meta) {
   summaryShown = false;
   run = newRun(blocks, meta);
   showPane('live');
+  document.getElementById('interval-pause')?.focus({ preventScroll: true });
   renderRun();
   startLoop();
   acquireWakeLock();
@@ -351,6 +352,7 @@ window.endIntervalRun = function() {
   document.getElementById('interval-done-stats').textContent =
     `${summary.rounds} effort${summary.rounds !== 1 ? 's' : ''} · ${formatClock(elapsedMs)} on the clock`;
   showPane('done');
+  document.querySelector('#interval-done button')?.focus({ preventScroll: true });
 };
 
 window.repeatIntervalRun = function() {
@@ -365,8 +367,9 @@ window.closeIntervalOverlay = function() {
   summaryShown = false;
   const overlay = document.getElementById('interval-overlay');
   if (overlay) {
-    overlay.classList.remove('open', 'paused');
+    overlay.classList.remove('paused');
     overlay.dataset.phase = '';
+    closeDialog(overlay);
   }
   document.body.classList.remove('interval-active');
   // The card may show a "last session" line; refresh it if we're on Log.
