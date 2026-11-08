@@ -1,10 +1,28 @@
-# 🫀 Project Pulse
+# 🫀 Pulse
 
-> **A local-first, zero-cost, open-source health engine built to combat chronic disease through lifelong physical capability, metabolic tracking, and recovery.**
+**A free strength and movement log that works offline. No account, no subscription, and your data never leaves your device.**
 
-**Pulse** is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. The movement engine shipped as Iron Log v1.8.2; Pulse extends it into a general health app: **Pulse Move** (strength, circuits, intervals), **Pulse Fuel** (nutrition) and **Pulse Recover** (mobility, sleep, rest).
+Pulse is a local-first health app for the three habits that change healthspan: **Move** (strength, circuits, intervals), **Fuel** (nutrition by hand portions) and **Recover** (sleep, soreness, rest). Open it, tap once, and you have a real ten-minute session — no equipment, no plan, no gym.
 
-**Live:** https://changelinglabs.com/pulse/ (served from this repo via GitHub Pages; formerly `edmundashdown.github.io/pulse/`).
+**Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
+
+Status: shipped and actively developed — **v2.20.0**, 267 tests, Lighthouse 100/100/100. MIT licensed.
+
+## Why people use it
+
+- **Free means free.** Logging, history, exports and generated sessions are never paywalled. No ads, no account, no tracking scripts.
+- **It works offline.** Everything lives on your device. Gym basements and bad signal are fine.
+- **You can take your data with you.** Full JSON backup plus CSV and Markdown exports, always.
+- **Ten minutes counts.** Built for people who are not gym people, with real logging depth for people who are.
+- **No scores, no shame.** Insights are descriptive: no readiness score, no injury prediction, no medical advice.
+
+### Who it's for
+
+People who have ten minutes and no plan; older adults and anyone returning after illness or injury; and lifters who want honest logging without a subscription. The default path is a generated daily session. The full strength log — PRs, plate maths, programmes, circuits — is underneath for anyone who stays.
+
+### A note on the mission
+
+Pulse exists because the behaviours that prevent the largest causes of death are the ones subscription wellness apps monetise. It is free, open source and local-first on purpose, and it will stay that way. The numbers behind that decision are below.
 
 ## 🎯 The Mission: Why Pulse Exists
 
@@ -26,6 +44,10 @@ Global Annual Mortality by Primary Cause (Millions)
 - **Diet as the Primary Driver:** Poor dietary quality causes ~11 million deaths annually — surpassing physical inactivity as the single largest global risk factor for cardiovascular mortality.
 - **The Fitness Defense:** Cardiorespiratory fitness (VO₂ max) and muscle strength show an inverse, linear relationship with all-cause mortality. High muscle mass and functional capacity delay arterial aging and metabolic decay by decades.
 - **The Accessibility & Knowledge Gap:** Most health apps lock basic tracking behind subscriptions, while social media spreads dangerous nutritional myths. **Pulse combines frictionless, low-cost tracking with embedded, science-backed micro-education.**
+
+### Heritage
+
+Pulse is the continuation of [Iron Log](https://github.com/edmundashdown/iron-log) — same codebase, same local-first DNA, wider mission. Iron Log shipped the movement engine (v1.8.2) and was retired on 2026-11-07; its history carries over.
 
 ## 🎨 Branding & Aesthetic Vision
 
@@ -75,7 +97,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 ### Phase 2: Pulse FUEL — Low-Friction Nutrition & Education (Complete — v2.2.0) ✅
 
 - [x] **Schema Extension & Data Layer** — `fuel_logs` + `water_logs` in a dedicated `pulse-fuel` database (`js/db.js`); `normalizeFuelLog`/`validateFuelLog`/`normalizeWaterLog` in `js/schema.js`; backups export both arrays (`BACKUP_VERSION` 4).
-- [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: `calcHandPortions()` (25g protein/palm, 15g carb/cupped, 10g fat/thumb), 10 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
+- [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: `calcHandPortions()` (25g protein/palm, 15g carb/cupped, 10g fat/thumb), 16 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
 - [x] **UI & Tab Integration** — Fuel tab with hand-portion estimator modal, protein/quality/hydration meters, daily myth card, `pulse-fuel` persistence.
 
 ### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 🚧
@@ -102,6 +124,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Accessibility + reliability pass (v2.18.0)** — skip link, visible keyboard focus rings, `aria-current` nav, labelled icon-only buttons, and dialogs that are inert while closed, trap Tab, close on Escape and restore focus. Reduced motion disables confetti and minimises CSS transitions. Storage failures get a friendly banner or boot card with **Export backup now**. Lighthouse: **100 Accessibility, 100 Best Practices, 100 SEO**. The physical screen-reader/device pass remains on the checklist.
 - [x] **Fuel: meal templates + weekly hand portions (v2.19.0)** — seven embedded meal templates prefill the normal hand-portion modal (eggs & toast, chicken rice bowl, salmon & potatoes, yoghurt & berries, tofu stir-fry, beans on toast, oats & peanut butter). A **Next week's hand portions** card turns the last seven days of logs into a rough shopping guide — projected palms/fists/cupped/thumbs, days logged, whole-food share — with examples and a clear "not a target" note. No new store, no network.
 - [x] **Recover: wind-down + sleep notes (v2.20.0)** — two Recover-only hold routines (**Evening wind-down**, 6 holds / 5 min; **Desk reset**, 4 holds / 3 min) launch the existing interval runner. A daily **Sleep note** card rotates through eight conservative sleep-hygiene cards with an "Another" button and a permanent "General sleep hygiene — not medical advice" line. Embedded and offline.
+- [x] **Move + myth content (v2.21.0)** — three more starter programmes (**2-day full body**, **Push / pull / legs**, **5×5 strength base**), bringing the library to six. Six more conservative myth cards (breakfast, detox, gluten-free, frozen produce, supplements, organic) bring Fuel to 16; the review sheet marks all new cards as AI-assisted and still pending clinician sign-off.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -189,7 +212,7 @@ The **Move** tab is the daily action surface. It has three segments — **Today 
 - **Programs** — the three starter programmes, plus the interval protocols and mobility holds for running something on its own.
 - **Planner** — the session planner, unchanged apart from living inside Move.
 
-**Starter programmes.** Three embedded plans: **3-day full body** (4 weeks), **4-day upper / lower** (4 weeks), and a **6-week beginner** ramp that starts with two sets and adds a little each week. Starting a plan loads the session into the Planner with a banner to mark it done; the Today pane always shows the next unfinished session with **Continue where you left off**. Progress is stored in the `moveProgramme` preference, so it survives a reload, and a first-run device sees the starter programme card instead of an empty prompt. Plans use percentage-of-1RM sets, so target weights appear once the matching PR exists — log a set and the Planner has a baseline.
+**Starter programmes.** Six embedded plans: the **6-week beginner** ramp, **3-day full body**, **4-day upper / lower**, **2-day full body** for busy weeks, **Push / pull / legs**, and a **5×5 strength base** with a lighter middle week. Starting a plan loads the session into the Planner with a banner to mark it done; the Today pane always shows the next unfinished session with **Continue where you left off**. Progress is stored in the `moveProgramme` preference, so it survives a reload, and a first-run device sees the starter programme card instead of an empty prompt. Plans use percentage-of-1RM sets, so target weights appear once the matching PR exists — log a set and the Planner has a baseline.
 
 **Adaptive generation.** Exercises carry an additive `pattern` (push, pull, squat, hinge, carry, core, cardio, mobility), inferred from the name for records created before v2.17.0 and passed explicitly by quick sessions. `js/adaptive.js` has six goal profiles — **Get moving, Build strength, Lose fat keep muscle, Return to activity, Heart health, Preserve muscle** — each a small weighting table, no machine learning. Today's move picks the focus with the largest real pattern gap weighted by the goal, then says why in one sentence (for example, "Full body today — you haven't pulled in 20 days"). The Programs pane has a Goal card and a pattern-balance row showing days since every pattern. A latest check-in with soreness ≥7 or sleep <6 swaps in mobility with a plain-language reason and a **Do the usual session instead** override. No readiness score, no diagnosis, no prediction — every suggestion is editable and skippable.
 
@@ -365,12 +388,13 @@ Pulse is an open-source project driven by a single belief: **essential health to
 
 Whether you are a developer, UI designer, or health researcher, contributions are welcome:
 
-- **Code:** Check the active roadmap items in `Phase 3: Refactor & Cloud Sync Engine`.
+- **Code:** Check the open roadmap items. Right now the focus is distribution and first-run onboarding, not more features.
 - **Testing:** Run local unit tests via `npm test` and verify browser PWA behaviors.
 - **Documentation:** Help refine guided recovery routines and non-profit educational guides.
+- **Distribution:** the most useful contribution today is telling one person who needs it. Reach is the bottleneck, not features.
 
 ```bash
-git clone https://github.com/EdmundAshdown/pulse.git
+git clone https://github.com/Changeling-Labs/pulse.git
 cd pulse
 npm install   # dev deps: none (Node built-in test runner)
 npm test

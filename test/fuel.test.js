@@ -112,6 +112,7 @@ test('weeklyHandPortions handles empty, invalid and sparse history', () => {
 });
 
 test('myth cards are well-formed and unique', () => {
+  assert.ok(MYTH_CARDS.length >= 16);
   const ids = new Set(MYTH_CARDS.map(c => c.id));
   assert.equal(ids.size, MYTH_CARDS.length);      // unique ids
   for (const card of MYTH_CARDS) {
@@ -135,6 +136,7 @@ test('myth copy keeps the v2.11.0 medical-advice guardrails', () => {
 
   // No card may tell someone to stop a prescribed treatment.
   assert.doesNotMatch(copy, /stop (taking|your) (medication|statin)/i);
+  assert.doesNotMatch(copy, /\bcures?\b|detoxifies|guarantee/i);
 });
 
 test('getDailyMythCard is deterministic for a given date', () => {

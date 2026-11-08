@@ -238,6 +238,42 @@ export const MYTH_CARDS = Object.freeze([
     truth: 'In people with normal kidney function, higher protein intakes have not shown meaningful harm in short- and medium-term studies. The concern applies to people who already have kidney disease.',
     action: 'If you train and your kidneys are healthy, roughly 1.4–2.0 g/kg is a reasonable range. If you have kidney disease, set protein with your doctor.',
   },
+  {
+    id: 'myth-breakfast',
+    myth: 'Skipping breakfast slows your metabolism.',
+    truth: 'Total intake and food quality matter more than the exact timing of your first meal. Breakfast helps some people manage hunger and training; others do fine without it.',
+    action: 'Eat breakfast if it helps your day; skip it if you genuinely are not hungry.',
+  },
+  {
+    id: 'myth-detox',
+    myth: 'Detox teas and cleanses remove toxins.',
+    truth: 'Healthy livers and kidneys already clear waste. Most detox products have little evidence of meaningful benefit, and some can cause digestive upset.',
+    action: 'Spend the money on food, sleep and movement instead.',
+  },
+  {
+    id: 'myth-gluten-free',
+    myth: 'Gluten-free is healthier for everyone.',
+    truth: 'For people without coeliac disease or a diagnosed sensitivity, gluten-free eating has not shown a general health advantage and can be lower in fibre.',
+    action: 'Do not cut gluten unless it clearly helps you or a clinician advises it.',
+  },
+  {
+    id: 'myth-frozen-produce',
+    myth: 'Fresh produce is always more nutritious than frozen.',
+    truth: 'Frozen fruit and vegetables are usually picked and frozen near harvest and retain comparable nutrients. Convenience often means more vegetables eaten, not fewer.',
+    action: 'Keep frozen vegetables and fruit on hand for the days fresh runs out.',
+  },
+  {
+    id: 'myth-supplements',
+    myth: 'A supplement stack is the key to good health.',
+    truth: 'Most people can meet their needs from food. Supplements are useful for specific deficiencies or higher needs, ideally guided by testing and a clinician.',
+    action: 'Fix the basics first; treat supplements as targeted tools, not a shortcut.',
+  },
+  {
+    id: 'myth-organic',
+    myth: 'Organic food is always more nutritious.',
+    truth: 'Organic farming differs in production methods. Nutrition differences are small and inconsistent, and both organic and conventional produce can be part of a healthy diet.',
+    action: 'Buy organic if it matters to you; do not skip vegetables if it does not.',
+  },
 ]);
 
 function cardByIndex(i) {

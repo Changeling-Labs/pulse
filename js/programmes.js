@@ -85,6 +85,53 @@ const BEGINNER_DAYS = [
   ]),
 ];
 
+const TWO_DAY_DAYS = [
+  day('Full body A', 'Squat · Bench · Row', [
+    block('Back Squat'),
+    block('Bench Press'),
+    block('Barbell Row'),
+  ]),
+  day('Full body B', 'Deadlift · Press · RDL', [
+    block('Deadlift'),
+    block('Overhead Press'),
+    block('Romanian Deadlift'),
+  ]),
+];
+
+const PPL_DAYS = [
+  day('Push', 'Bench · Press', [
+    block('Bench Press'),
+    block('Overhead Press'),
+  ]),
+  day('Pull', 'Row · RDL', [
+    block('Barbell Row'),
+    block('Romanian Deadlift'),
+  ]),
+  day('Legs', 'Squat · Deadlift · RDL', [
+    block('Back Squat'),
+    block('Deadlift'),
+    block('Romanian Deadlift'),
+  ]),
+];
+
+const FIVE_BY_FIVE_DAYS = [
+  day('Day A', 'Squat · Bench · Row', [
+    block('Back Squat'),
+    block('Bench Press'),
+    block('Barbell Row'),
+  ]),
+  day('Day B', 'Squat · Press · Deadlift', [
+    block('Back Squat'),
+    block('Overhead Press'),
+    block('Deadlift'),
+  ]),
+  day('Day A', 'Squat · Bench · Row', [
+    block('Back Squat'),
+    block('Bench Press'),
+    block('Barbell Row'),
+  ]),
+];
+
 // Four-week wave for the two returning/regular plans. Volume rises for a
 // week, then the final week drops to triples at a little more load.
 const STANDARD_WAVE = [
@@ -104,6 +151,9 @@ const BEGINNER_WAVE = [
   { sets: [{ pct: 60, reps: 6 }, { pct: 65, reps: 6 }, { pct: 70, reps: 6 }] },
   { sets: [{ pct: 65, reps: 6 }, { pct: 70, reps: 6 }, { pct: 75, reps: 6 }] },
 ];
+
+const fiveByFive = pct => ({ sets: Array.from({ length: 5 }, () => ({ pct, reps: 5 })) });
+const FIVE_BY_FIVE_WAVE = [60, 62.5, 65, 60, 67.5, 70].map(fiveByFive);
 
 export const PROGRAMMES = [
   {
@@ -138,6 +188,39 @@ export const PROGRAMMES = [
     description: 'A gentle six-week ramp: two sets in week one, then a little more each week.',
     days: BEGINNER_DAYS,
     wave: BEGINNER_WAVE,
+  },
+  {
+    id: 'full-body-2',
+    name: '2-day full body',
+    daysPerWeek: 2,
+    weeks: 4,
+    level: 'returning',
+    levelLabel: 'Getting back',
+    description: 'Two balanced sessions a week for busy weeks. Same lifts, less time.',
+    days: TWO_DAY_DAYS,
+    wave: STANDARD_WAVE,
+  },
+  {
+    id: 'push-pull-legs-3',
+    name: 'Push / pull / legs',
+    daysPerWeek: 3,
+    weeks: 4,
+    level: 'regular',
+    levelLabel: 'Regular',
+    description: 'A compact push, pull and leg day each week, built from the six seeded lifts.',
+    days: PPL_DAYS,
+    wave: STANDARD_WAVE,
+  },
+  {
+    id: 'strength-base-5x5',
+    name: '5×5 strength base',
+    daysPerWeek: 3,
+    weeks: 6,
+    level: 'regular',
+    levelLabel: 'Regular',
+    description: 'Three days of five-by-five work, with a lighter middle week to keep the bar moving.',
+    days: FIVE_BY_FIVE_DAYS,
+    wave: FIVE_BY_FIVE_WAVE,
   },
 ];
 

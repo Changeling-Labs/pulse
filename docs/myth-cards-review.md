@@ -5,12 +5,12 @@ not medical advice, but they should still be checked by someone with clinical
 training before the app is shared widely. This sheet is the review surface:
 each card gets a decision and, where needed, an edit.
 
-> **Status (2026-11-06):** no clinician was available, so an **AI-assisted
-> conservative pass** was applied for **v2.11.0** (see "AI-assisted pass" below).
-> Every card now ships with an on-screen *"Educational only — not medical
-> advice."* line. The clinician sign-off block at the bottom is **still open** —
-> treat the current wording as a reviewed-by-nobody draft that has been hedged
-> hard, not as clinically approved copy.
+> **Status (2026-11-07):** no clinician was available, so an **AI-assisted
+> conservative pass** was applied for **v2.11.0** and extended for **v2.21.0**
+> (six more cards). Every card now ships with an on-screen *"Educational only —
+> not medical advice."* line. The clinician sign-off block at the bottom is
+> **still open** — treat the current wording as a reviewed-by-nobody draft that
+> has been hedged hard, not as clinically approved copy.
 
 **Reviewer instructions**
 
@@ -110,8 +110,31 @@ If a clinician edits a card, add the source they relied on to `reviewer notes`.
    as food quality, not a fat target.
 4. **`myth-red-meat-heart`** rests on observational cohorts with residual
    confounding; "modest" is doing a lot of work.
-5. **No card covers alcohol, sodium or supplements** — deliberate omissions,
-   not endorsements.
+5. **No card covers alcohol or sodium** — deliberate omissions, not endorsements.
+6. **`myth-gluten-free`** names coeliac disease and diagnosed sensitivity. The
+   reviewer must ensure it reads as a reason not to self-diagnose, not as
+   guidance for someone with a diagnosed condition.
+7. **`myth-supplements`** must not be read as encouragement to self-treat a
+   suspected deficiency. The action deliberately points to testing/clinician.
+8. **`myth-detox`** names a product category. It makes no medical claim, but the
+   reviewer should confirm the tone stays factual rather than promotional.
+
+---
+
+## v2.21.0 additions — AI-assisted, not clinician-approved
+
+Six cards were added with the same rules as the v2.11.0 pass:
+
+- **Breakfast timing** — no metabolic-slowing claim; individual hunger and routine.
+- **Detox products** — no product benefit claimed; liver/kidney function named plainly.
+- **Gluten-free for everyone** — coeliac disease / diagnosed sensitivity caveat; no general-health claim.
+- **Frozen produce** — convenience and comparable nutrition, not a fresh-vs-frozen contest.
+- **Supplement stacks** — food first; targeted use with testing/clinician where relevant.
+- **Organic food** — production-method choice; small, inconsistent nutrition differences.
+
+**Reviewer note:** these six cards are the least-sourced in the set. Attach a
+primary source for each (or ask for an edit/drop) before sign-off. The `action`
+lines are intentionally low-stakes and should not be read as treatment advice.
 
 ---
 
@@ -129,6 +152,12 @@ If a clinician edits a card, add the source they relied on to `reviewer notes`.
 | 8 | `myth-low-fat-always` | Low-fat foods are always the heart-healthy choice. | Low-fat products are often reformulated with refined carbs and sugar, which can raise triglycerides — the label says less fat, not better food. | Prefer unpackaged food: fatty fish, nuts, olive oil, avocado — not "fat-free" snack packs. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "which worsen" → "which can raise" |
 | 9 | `myth-cholesterol-number` | Lowering one cholesterol number (LDL) is the whole game. | Risk is multi-factorial: blood pressure, smoking, glucose, lipids, inflammation and fitness all matter. Cardiorespiratory fitness is one of the strongest predictors of long-term mortality — comparable to, or stronger than, several traditional risk factors. | Chase the whole profile: fitness, waist, BP, lipids, glucose. Medication decisions belong with your clinician. | ☐ Keep ☐ Edit ☐ Drop | AI pass: "VO2max rivals medications" removed (Mandsager 2018; Ross 2016) |
 | 10 | `myth-protein-damage` | High-protein diets damage healthy kidneys. | In people with normal kidney function, higher protein intakes have not shown meaningful harm in short- and medium-term studies. The concern applies to people who already have kidney disease. | If you train and your kidneys are healthy, roughly 1.4–2.0 g/kg is a reasonable range. If you have kidney disease, set protein with your doctor. | ☐ Keep ☐ Edit ☐ Drop | AI pass: bounded to short/medium term; range corrected to ISSN 1.4–2.0 g/kg (Devries 2018; Jäger 2017) |
+| 11 | `myth-breakfast` | Skipping breakfast slows your metabolism. | Total intake and food quality matter more than the exact timing of your first meal. Breakfast helps some people manage hunger and training; others do fine without it. | Eat breakfast if it helps your day; skip it if you genuinely are not hungry. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: removes the metabolic-slowing claim; reviewer to source |
+| 12 | `myth-detox` | Detox teas and cleanses remove toxins. | Healthy livers and kidneys already clear waste. Most detox products have little evidence of meaningful benefit, and some can cause digestive upset. | Spend the money on food, sleep and movement instead. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: no product benefit claimed; reviewer to source |
+| 13 | `myth-gluten-free` | Gluten-free is healthier for everyone. | For people without coeliac disease or a diagnosed sensitivity, gluten-free eating has not shown a general health advantage and can be lower in fibre. | Do not cut gluten unless it clearly helps you or a clinician advises it. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: coeliac/sensitivity caveat; clinician review needed |
+| 14 | `myth-frozen-produce` | Fresh produce is always more nutritious than frozen. | Frozen fruit and vegetables are usually picked and frozen near harvest and retain comparable nutrients. Convenience often means more vegetables eaten, not fewer. | Keep frozen vegetables and fruit on hand for the days fresh runs out. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: convenience framing; reviewer to source |
+| 15 | `myth-supplements` | A supplement stack is the key to good health. | Most people can meet their needs from food. Supplements are useful for specific deficiencies or higher needs, ideally guided by testing and a clinician. | Fix the basics first; treat supplements as targeted tools, not a shortcut. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: no blanket supplement advice; reviewer to source |
+| 16 | `myth-organic` | Organic food is always more nutritious. | Organic farming differs in production methods. Nutrition differences are small and inconsistent, and both organic and conventional produce can be part of a healthy diet. | Buy organic if it matters to you; do not skip vegetables if it does not. | ☐ Keep ☐ Edit ☐ Drop | v2.21.0 AI pass: small/inconsistent differences; reviewer to source |
 
 ---
 

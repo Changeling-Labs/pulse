@@ -144,7 +144,7 @@ export function programmeCardHtml({ hasHistory = false } = {}) {
       <div class="card programme-card starter-programme">
         <div class="card-head">
           <div class="card-label" style="margin-bottom:0">Start with a plan</div>
-          <span class="programme-tag">3 programmes</span>
+          <span class="programme-tag">${PROGRAMMES.length} programmes</span>
         </div>
         <div class="programme-title">Not sure where to start?</div>
         <p class="programme-blurb">The 6-week beginner progression is three short sessions a week, with a gentle ramp.</p>

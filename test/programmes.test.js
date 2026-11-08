@@ -15,7 +15,7 @@ const SEEDED_LIFTS = new Set([
 ]);
 
 test('starter programmes are well-formed and uniquely identified', () => {
-  assert.equal(PROGRAMMES.length, 3);
+  assert.equal(PROGRAMMES.length, 6);
   const ids = new Set(PROGRAMMES.map(p => p.id));
   assert.equal(ids.size, PROGRAMMES.length);
 
@@ -38,6 +38,9 @@ test('programme lengths match their weekly structure', () => {
   assert.equal(sessionCount(programmeById('full-body-3')), 12);
   assert.equal(sessionCount(programmeById('upper-lower-4')), 16);
   assert.equal(sessionCount(programmeById('beginner-6')), 18);
+  assert.equal(sessionCount(programmeById('full-body-2')), 8);
+  assert.equal(sessionCount(programmeById('push-pull-legs-3')), 12);
+  assert.equal(sessionCount(programmeById('strength-base-5x5')), 18);
   assert.equal(sessionCount(null), 0);
 });
 
@@ -117,6 +120,32 @@ test('the beginner programme starts with two sets and ramps gently', () => {
   assert.ok(Math.max(...week1.blocks[0].sets.map(s => s.value)) <= 60);
   assert.ok(Math.max(...week6.blocks[0].sets.map(s => s.value)) <= 80);
   assert.equal(week6.blocks[0].sets[0].reps, 6);
+});
+
+test('the 5x5 programme holds five sets and includes a lighter middle week', () => {
+  const programme = programmeById('strength-base-5x5');
+  const week1 = sessionAt(programme, 0);
+  const week4 = sessionAt(programme, 9);
+  const week6 = sessionAt(programme, 15);
+
+  for (const session of [week1, week4, week6]) {
+    assert.equal(session.blocks[0].sets.length, 5);
+    assert.ok(session.blocks[0].sets.every(set => set.reps === 5));
+  }
+  assert.equal(week1.blocks[0].sets[0].value, 60);
+  assert.equal(week4.blocks[0].sets[0].value, 60);
+  assert.equal(week6.blocks[0].sets[0].value, 70);
+});
+
+test('the push / pull / legs split keeps each day focused', () => {
+  const programme = programmeById('push-pull-legs-3');
+  const push = sessionAt(programme, 0);
+  const pull = sessionAt(programme, 1);
+  const legs = sessionAt(programme, 2);
+
+  assert.deepEqual(push.blocks.map(b => b.exercise), ['Bench Press', 'Overhead Press']);
+  assert.deepEqual(pull.blocks.map(b => b.exercise), ['Barbell Row', 'Romanian Deadlift']);
+  assert.deepEqual(legs.blocks.map(b => b.exercise), ['Back Squat', 'Deadlift', 'Romanian Deadlift']);
 });
 
 test('nextSession follows nextIndex and stops at the end', () => {
