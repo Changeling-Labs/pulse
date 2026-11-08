@@ -12,6 +12,7 @@ import {
 } from '../../fuel.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
+import { track } from '../../analytics.js';
 
 // ── Fuel Tab (Pulse Fuel) ─────────────────────────────────
 // Low-friction nutrition: one-tap hand portions, whole-food quality,
@@ -232,6 +233,7 @@ window.submitFuelLog = async function() {
       handPortions: { ...fuelPortions },
       notes,
     });
+    track('meal-logged');
   } catch (err) {
     handleSaveError(err);
     return;

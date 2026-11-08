@@ -15,6 +15,7 @@ import { buildInsight } from '../../insights.js';
 import { toKg, toLbs, displayWeight } from '../../calc.js';
 import { holdRoutinesFor } from '../../intervals.js';
 import { handleSaveError } from '../../kernel/errors.js';
+import { track } from '../../analytics.js';
 
 let windowDays = 7;
 let editingDate = null;      // null = today
@@ -453,6 +454,7 @@ window.recoverSave = async function() {
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
     await saveRecoveryLog(draft);
+    track('checkin-saved');
     savedAt = Date.now();
     await renderTab('recover');
   } catch (err) {

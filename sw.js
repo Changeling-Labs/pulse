@@ -1,10 +1,11 @@
-const CACHE = 'pulse-v30';
+const CACHE = 'pulse-v31';
 const ASSETS = [
   './',
   './index.html',
   './css/app.css',
   './js/app.js',
   './js/install.js',
+  './js/analytics.js',
   './js/kernel/helpers.js',
   './js/kernel/shell.js',
   './js/kernel/a11y.js',

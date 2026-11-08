@@ -21,6 +21,7 @@ import { formatClock } from '../../timer.js';
 import { primeAudio, cue } from '../../cues.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
+import { track } from '../../analytics.js';
 import {
   TIME_OPTIONS, FOCUS, LEVELS, EQUIPMENT, IMPACT,
   focusById, levelById, equipmentById, impactById,
@@ -347,6 +348,7 @@ async function beginSession(next, meta = {}) {
 
   const overlay = ensureOverlay();
   overlay.classList.remove('done');
+  track('session-start', dailyMeta ? 'daily' : 'quick');
   document.getElementById('quick-kicker').textContent = describeSession(session);
   document.getElementById('quick-name').textContent = session.name;
   document.getElementById('quick-items').innerHTML = session.items.map(itemRowHtml).join('');
@@ -565,6 +567,7 @@ async function finishSession(finished) {
   document.querySelector('#quick-done button')?.focus({ preventScroll: true });
   if (finished) {
     cue('done');
+    track('session-complete', dailyMeta ? 'daily' : 'quick');
     // Only a fully completed round list marks the day done. Ending early is
     // still valid training, but it does not claim the daily session. Await the
     // write so the card cannot race it when the overlay closes.

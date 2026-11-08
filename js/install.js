@@ -4,6 +4,8 @@
 // the native prompt via `beforeinstallprompt`; iOS Safari gets the one
 // instruction Apple actually supports. Nothing is sent anywhere.
 
+import { track } from './analytics.js';
+
 const DISMISS_KEY = 'pulseInstallDismissedAt';
 const DISMISS_DAYS = 30;
 const DAY_MS = 86400000;
@@ -54,6 +56,7 @@ function dismiss() {
   } catch {
     /* private mode / storage denied: dismiss for this page only */
   }
+  track('install-dismiss');
   hide();
 }
 
@@ -94,6 +97,7 @@ function show() {
   hintEl.querySelector('.install-hint-dismiss')?.addEventListener('click', dismiss);
   hintEl.querySelector('.install-hint-action')?.addEventListener('click', async () => {
     if (!deferredPrompt) return;
+    track('install-click');
     deferredPrompt.prompt();
     try {
       await deferredPrompt.userChoice;
@@ -113,7 +117,10 @@ export function initInstallHint() {
     deferredPrompt = event;
     show();
   });
-  window.addEventListener('appinstalled', hide);
+  window.addEventListener('appinstalled', () => {
+    track('install-complete');
+    hide();
+  });
 
   // iOS never fires beforeinstallprompt; show the instruction after the first
   // paint rather than competing with the app's opening render.

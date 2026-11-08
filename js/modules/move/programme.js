@@ -12,6 +12,7 @@ import {
   sessionLabel, programmeExercises,
 } from '../../programmes.js';
 import { strengthExercises } from './shared.js';
+import { track } from '../../analytics.js';
 
 const PREF = 'moveProgramme';
 let prefLoad = null;
@@ -78,6 +79,7 @@ export function openProgrammeSession(programmeId, index) {
   state.programmeSession = { programmeId, index };
   state.moveView = 'planner';
   setPref('moveView', 'planner').catch(() => { /* a view preference */ });
+  track('session-start', 'programme');
   renderTab('log');
 }
 
@@ -109,6 +111,7 @@ export function completeProgrammeSession() {
   state.moveProgramme = progress;
   state.programmeSession = null;
   setPref(PREF, progress).catch(() => { /* progress is a preference */ });
+  track('programme-session-done');
   showToast();
   state.moveView = 'today';
   setPref('moveView', 'today').catch(() => { /* a view preference */ });

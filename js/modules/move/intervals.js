@@ -13,6 +13,7 @@ import { formatClock } from '../../timer.js';
 import { getPref, setPref } from '../../db.js';
 import { primeAudio, cue } from '../../cues.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
+import { track } from '../../analytics.js';
 import {
   getPreset, getHoldRoutine,
   blocksForIntervals, blocksForHolds,
@@ -237,6 +238,7 @@ function finishRun() {
   cue('done');
 
   if (summary.finished) {
+    track('session-complete', summary.kind === 'hold' ? 'mobility' : 'interval');
     setPref('intervalLast', {
       name: summary.name,
       kind: summary.kind,
@@ -257,6 +259,7 @@ function startBlocks(blocks, meta) {
   customDraft = { blocks, meta };
   summaryShown = false;
   run = newRun(blocks, meta);
+  track('session-start', meta.kind === 'hold' ? 'mobility' : 'interval');
   showPane('live');
   document.getElementById('interval-pause')?.focus({ preventScroll: true });
   renderRun();

@@ -15,6 +15,7 @@ import { metricsForExercise } from './shared.js';
 import { CIRCUIT_REST_OPTIONS } from './timer.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
+import { track } from '../../analytics.js';
 
 window.stepField = function(scope, key, sign, step) {
   const el = scopeEl(scope, key);
@@ -402,6 +403,7 @@ window.submitLog = async function() {
 
   try {
     await addSet(payload);   // addSet validates the shape for the set's metric
+    track('set-logged');
   } catch (err) {
     handleSaveError(err);
     return;
@@ -439,6 +441,7 @@ async function submitCircuit() {
 
   try {
     await addSets(built.map(r => r.payload));
+    track('circuit-logged');
   } catch (err) {
     handleSaveError(err);
     return;
