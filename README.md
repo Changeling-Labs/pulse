@@ -6,11 +6,11 @@ Pulse is a local-first health app for the three habits that change healthspan: *
 
 **Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
 
-Status: shipped and actively developed — **v2.21.1**, 272 tests, Lighthouse 100/100/100. MIT licensed.
+Status: shipped and actively developed — **v2.21.2**, 272 tests, Lighthouse 100/100/100. MIT licensed.
 
 ## Why people use it
 
-- **Free means free.** Logging, history, exports and generated sessions are never paywalled. No ads, no account, no tracking scripts.
+- **Free means free.** Logging, history, exports and generated sessions are never paywalled. No ads, no account, no personal tracking. The only measurement request is a cookieless, aggregate pageview.
 - **It works offline.** Everything lives on your device. Gym basements and bad signal are fine.
 - **You can take your data with you.** Full JSON backup plus CSV and Markdown exports, always.
 - **Ten minutes counts.** Built for people who are not gym people, with real logging depth for people who are.
@@ -54,7 +54,7 @@ Pulse is the continuation of [Iron Log](https://github.com/edmundashdown/iron-lo
 - **Name:** **Pulse** (Sub-modules: *Pulse Move*, *Pulse Fuel*, *Pulse Recover*)
 - **Tagline:** _Engineered for Healthspan._
 - **Aesthetic Direction:** Industrial Minimalist, in the Changeling Labs palette — Deep Navy background (`#0B111E`), Electric Deep Blue (`#0056D2`) for actions, Glowing Turquoise (`#00F5FF`) for live/accent information, Barlow Condensed display type over Inter. Contrast is a requirement, not a preference: every label tier clears WCAG AA on its own surface.
-- **Core Ethos:** Local-first data ownership, instant response times, zero tracking scripts, no paywalls.
+- **Core Ethos:** Local-first data ownership, instant response times, no cookies or personal identifiers, one cookieless aggregate pageview, no paywalls.
 
 ## 🏗️ Architecture & Core Principles
 
@@ -126,6 +126,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Recover: wind-down + sleep notes (v2.20.0)** — two Recover-only hold routines (**Evening wind-down**, 6 holds / 5 min; **Desk reset**, 4 holds / 3 min) launch the existing interval runner. A daily **Sleep note** card rotates through eight conservative sleep-hygiene cards with an "Another" button and a permanent "General sleep hygiene — not medical advice" line. Embedded and offline.
 - [x] **Move + myth content (v2.21.0)** — three more starter programmes (**2-day full body**, **Push / pull / legs**, **5×5 strength base**), bringing the library to six. Six more conservative myth cards (breakfast, detox, gluten-free, frozen produce, supplements, organic) bring Fuel to 16; the review sheet marks all new cards as AI-assisted and still pending clinician sign-off.
 - [x] **Distribution polish (v2.21.1)** — a Pulse-only, dismissible install hint (Chrome native prompt or iOS Share → Add to Home Screen) with a 30-day dismissal; hub crawl files (`robots.txt`, `sitemap.xml`); GitHub homepage, description and topics set.
+- [x] **Cookieless analytics (v2.21.2)** — GoatCounter on the hub and Pulse, loaded only on `changelinglabs.com` and `www.changelinglabs.com`. Aggregate pageviews and referrers, no cookies, no persistent IDs, no cross-site profiles, no access to logged data. Localhost and preview hosts are excluded; privacy policy updated.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
