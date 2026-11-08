@@ -134,6 +134,14 @@ test('normalizeExercise falls back to strength for empty or useless metrics list
   assert.deepEqual(normalizeExercise({ name: 'X', metrics: ['bogus'] }).metrics, ['strength']);
 });
 
+test('normalizeExercise stamps an inferred pattern and keeps an explicit one', () => {
+  assert.equal(normalizeExercise({ name: 'Bench Press' }).pattern, 'push');
+  assert.equal(normalizeExercise({ name: 'Barbell Row' }).pattern, 'pull');
+  assert.equal(normalizeExercise({ name: 'Mystery movement' }).pattern, 'core');
+  assert.equal(normalizeExercise({ name: 'Custom', pattern: 'carry' }).pattern, 'carry');
+  assert.equal(normalizeExercise({ name: 'Custom', pattern: 'bogus' }).pattern, 'core');
+});
+
 test('validateSet validates every declared metric on composite sets', () => {
   const complete = { exerciseId: 1, date: '2026-11-05', type: 'distance', distance: 2000, duration: 420 };
   assert.equal(validateSet(complete, ['distance', 'timed']).ok, true);

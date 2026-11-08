@@ -6,7 +6,7 @@
 // for tabs that need one, and may add fabText to turn the circle into an
 // extended, labelled action. renderTab hides it otherwise.
 
-import { openDB, migrateExerciseMetrics, seedIfEmpty, getExercises, getEquipment, getPref } from '../db.js';
+import { openDB, migrateExerciseMetrics, migrateExercisePatterns, seedIfEmpty, getExercises, getEquipment, getPref } from '../db.js';
 
 // ── State ──────────────────────────────────────────────────
 export let state = {
@@ -18,6 +18,9 @@ export let state = {
   prWindow: '365',
   progressView: 'records',   // Records | Trends inside the Progress tab
   moveView: 'today',        // Today | Programs | Planner inside the Move tab
+  moveGoal: 'move',         // adaptive goal profile
+  todayPlan: null,          // adaptive daily plan currently on screen
+  todayUsualPlan: null,     // pre-recovery plan, for the one-tap override
   moveProgramme: null,      // active starter programme + saved progress
   programmeSession: null,   // programme session currently loaded in the planner
   trendRange: '12w',        // 4w | 12w | 1y
@@ -89,6 +92,7 @@ function setupNav() {
 export async function boot() {
   await openDB();
   await migrateExerciseMetrics();   // no-op on fresh DBs
+  await migrateExercisePatterns();  // additive pattern stamp for older records
   await seedIfEmpty();
   state.exercises = await getExercises();
   state.equipment = await getEquipment();
@@ -96,6 +100,7 @@ export async function boot() {
   state.prWindow = await getPref('prWindow', '365');
   state.progressView = await getPref('progressView', 'records');
   state.moveView = await getPref('moveView', 'today');
+  state.moveGoal = await getPref('moveGoal', 'move');
   state.trendRange = await getPref('trendRange', '12w');
   state.restSeconds = await getPref('restSeconds', 90);
 

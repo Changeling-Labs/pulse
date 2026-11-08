@@ -316,3 +316,17 @@ test('dailyPlan rejects impossible or malformed dates', () => {
   assert.notEqual(dailyOrdinal('2028-02-29'), null);
   assert.notEqual(dailyPlan('2028-02-29'), null);
 });
+
+test('adaptive generation can override the cycle with upper or lower', () => {
+  const upper = dailyPlan('2026-11-07', { kind: 'upper' });
+  assert.equal(upper.kind, 'upper');
+  assert.equal(upper.title, 'Upper body');
+  assert.ok(upper.session);
+  assert.ok(upper.session.items.every(item => ['push', 'pull', 'core'].includes(item.pattern)));
+
+  const lower = dailyPlan('2026-11-07', { kind: 'lower' });
+  assert.equal(lower.kind, 'lower');
+  assert.equal(lower.title, 'Lower body');
+  assert.ok(lower.session);
+  assert.ok(lower.session.items.every(item => ['squat', 'hinge', 'core', 'cardio'].includes(item.pattern)));
+});

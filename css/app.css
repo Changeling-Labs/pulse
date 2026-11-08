@@ -2009,6 +2009,98 @@ body.quick-active { overflow: hidden; }
 
 .daily-action { margin-top: 14px; }
 
+.daily-reason {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+
+.daily-goal {
+  display: block;
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--glow);
+  font-family: var(--font-body);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-override { margin-top: 8px; font-size: 12px; }
+
+.goal-blurb {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.goal-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.goal-choice {
+  padding: 8px 12px;
+  border: 1px solid var(--border-md);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.goal-choice:hover { border-color: var(--brand-hi); }
+.goal-choice.active {
+  border-color: var(--brand-hi);
+  color: var(--glow);
+  background: var(--glow-dim);
+}
+
+.goal-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.pattern-balance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.pattern-chip {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.pattern-chip b {
+  margin-right: 3px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.pattern-chip.empty { opacity: 0.55; }
+
+.pattern-note {
+  margin-top: 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
 .strength-card { border-color: var(--border); }
 
 .strength-blurb {

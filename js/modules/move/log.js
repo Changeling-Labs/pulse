@@ -1,7 +1,7 @@
 // ── Pulse Move: segmented shell (Today | Programs | Planner) ──
 import { state, renderTab, registerTab, switchTab } from '../../kernel/shell.js';
 import { dw, fmtDate, todayStr, fmtDuration, sinceDate } from '../../kernel/helpers.js';
-import { getSets, deleteSet, deleteSetsByGroup, getPref, setPref } from '../../db.js';
+import { getSets, deleteSet, deleteSetsByGroup, getPref, setPref, getRecoveryLogs } from '../../db.js';
 import { groupByCircuit } from '../../circuits.js';
 import { countPRSets } from '../../pr.js';
 import { PRESETS, HOLD_ROUTINES } from '../../intervals.js';
@@ -11,6 +11,8 @@ import { quickCardHtml } from './quick.js';
 import { renderPlanner } from './planner.js';
 import { programmeCardHtml, programmesCardHtml, loadProgrammePreference } from './programme.js';
 import { dailyPlan, describeSession } from '../../movements.js';
+import { adaptiveDailyPlan, goalById, GOALS, patternGaps } from '../../adaptive.js';
+import { PATTERNS, PATTERN_LABELS } from '../../patterns.js';
 import { displayDistance } from '../../calc.js';
 
 const MOVE_VIEWS = ['today', 'programs', 'planner'];
@@ -49,19 +51,51 @@ function moveSwitch(view) {
 }
 
 // ── Today's move ───────────────────────────────────────────
-// The plan is derived from the date alone. The level preference only scales
-// the prescription; it never changes which kind of day it is.
-async function dailyCardHtml() {
+// The plan is adaptive: goal + real pattern gaps choose the focus, and a
+// recent rough check-in swaps in mobility with a plain-language reason.
+// Everything stays local and every choice can be overridden or skipped.
+async function latestRecoveryLog(date) {
+  const logs = await getRecoveryLogs();
+  return logs
+    .filter(log => log.date && log.date <= date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
+
+async function dailyCardHtml(allSets) {
   const quickPrefs = await getPref('moveQuick', null);
   const level = quickPrefs?.level || 'returning';
   const today = todayStr();
-  const plan = dailyPlan(today, { level });
+  const goal = goalById(state.moveGoal);
+  const recovery = await latestRecoveryLog(today);
+  const plan = adaptiveDailyPlan({
+    date: today,
+    level,
+    goal: goal.id,
+    exercises: state.exercises,
+    sets: allSets,
+    recovery,
+  });
   if (!plan) return '';
+
+  const usualPlan = plan.lighter && plan.usualKind
+    ? dailyPlan(today, { level, kind: plan.usualKind })
+    : null;
+  state.todayPlan = plan;
+  state.todayUsualPlan = usualPlan;
 
   const doneOn = await getPref('moveDailyDone', null);
   const done = doneOn === today;
   const doneLine = done
     ? '<div class="daily-done">✓ Done for today</div>'
+    : '';
+  const goalLine = `
+    <button type="button" class="daily-goal" onclick="setMoveView('programs')">
+      Goal: ${goal.label} · Change
+    </button>`;
+  const overrideLine = usualPlan?.session
+    ? `<button type="button" class="btn btn-ghost btn-full daily-override" onclick="startDailySession(true)">
+        Do the usual session instead
+      </button>`
     : '';
 
   if (plan.kind === 'rest') {
@@ -73,8 +107,10 @@ async function dailyCardHtml() {
         </div>
         <div class="daily-title">Rest day</div>
         <p class="daily-blurb">${plan.blurb}</p>
+        <div class="daily-reason">${plan.reason}</div>
         <ul class="rest-steps">${plan.recovery.map(step => `<li>${step}</li>`).join('')}</ul>
         ${doneLine}
+        ${goalLine}
         <button type="button" class="btn btn-full daily-action" onclick="goRecover()">Open Recover</button>
       </div>`;
   }
@@ -89,11 +125,14 @@ async function dailyCardHtml() {
         <div class="daily-title">${plan.title}</div>
         <p class="daily-blurb">${plan.blurb}</p>
         <div class="daily-meta">${plan.routineHint || 'A short hold routine'}</div>
+        <div class="daily-reason">${plan.reason}</div>
         ${doneLine}
         <button type="button" class="btn btn-primary btn-full daily-action"
           onclick="startHoldRoutine('${plan.routineId}')">
           Start ${plan.routineName || 'mobility'} routine
         </button>
+        ${overrideLine}
+        ${goalLine}
       </div>`;
   }
 
@@ -106,10 +145,12 @@ async function dailyCardHtml() {
       <div class="daily-title">${plan.title}</div>
       <p class="daily-blurb">${plan.blurb}</p>
       <div class="daily-meta">${describeSession(plan.session)}</div>
+      <div class="daily-reason">${plan.reason}</div>
       ${doneLine}
-      <button type="button" class="btn btn-primary btn-full daily-action" onclick="startDailySession()">
+      <button type="button" class="btn btn-primary btn-full daily-action" onclick="startDailySession(false)">
         ${done ? 'Do it again' : 'Start today\'s move'}
       </button>
+      ${goalLine}
     </div>`;
 }
 
@@ -208,7 +249,7 @@ async function todayHtml() {
       ).join('');
 
   return `
-    ${await dailyCardHtml()}
+    ${await dailyCardHtml(allSets)}
     ${programmeCardHtml({ hasHistory: allSets.length > 0 })}
     ${strengthCardHtml()}
     ${await quickCardHtml()}
@@ -232,8 +273,42 @@ async function todayHtml() {
     </div>`;
 }
 
-async function programsHtml() {
+function goalCardHtml(sets) {
+  const goal = goalById(state.moveGoal);
+  const gaps = patternGaps(sets, state.exercises, todayStr());
   return `
+    <div class="card goal-card">
+      <div class="card-label">Goal</div>
+      <p class="goal-blurb">Pulse uses this to bias today's move. It never changes what you can log.</p>
+      <div class="goal-choices">
+        ${GOALS.map(item => `
+          <button type="button" class="goal-choice ${item.id === goal.id ? 'active' : ''}"
+            aria-pressed="${item.id === goal.id}" onclick="setMoveGoal('${item.id}')">
+            ${item.label}
+          </button>`).join('')}
+      </div>
+      <div class="goal-hint">${goal.hint}</div>
+      <div class="pattern-balance">
+        ${PATTERNS.map(pattern => `
+          <span class="pattern-chip${gaps[pattern] === null ? ' empty' : ''}">
+            <b>${PATTERN_LABELS[pattern]}</b>${gaps[pattern] === null ? ' —' : ` ${gaps[pattern]}d`}
+          </span>`).join('')}
+      </div>
+      <div class="pattern-note">Days since each pattern. A dash means it has not been logged yet.</div>
+    </div>`;
+}
+
+window.setMoveGoal = function(id) {
+  const goal = goalById(id);
+  state.moveGoal = goal.id;
+  setPref('moveGoal', goal.id).catch(() => { /* a preference */ });
+  renderTab('log');
+};
+
+async function programsHtml() {
+  const allSets = await getSets();
+  return `
+    ${goalCardHtml(allSets)}
     ${programmesCardHtml()}
     ${await intervalCardHtml()}`;
 }

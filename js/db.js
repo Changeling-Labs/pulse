@@ -164,8 +164,20 @@ export async function migrateExerciseMetrics() {
   }
 }
 
-export async function addExercise(name, metrics = ['strength']) {
-  const record = stampWrite(normalizeExercise({ name, metrics }));
+// Additive pattern stamp for exercises created before v2.17.0. `pattern` is
+// derived from the name by normalizeExercise, then written back once. No DB
+// version bump: the field is additive and old readers ignore it.
+export async function migrateExercisePatterns() {
+  const raw = await all('exercises');
+  for (const ex of raw) {
+    const next = normalizeExercise(ex);
+    if (ex.pattern === next.pattern) continue;
+    await put('exercises', next);
+  }
+}
+
+export async function addExercise(name, metrics = ['strength'], pattern = undefined) {
+  const record = stampWrite(normalizeExercise({ name, metrics, pattern }));
   const id = await put('exercises', record);
   notifyDirty('exercises', record.syncId, 'put');
   return id;

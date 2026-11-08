@@ -263,14 +263,19 @@ window.startQuickSession = async function() {
 // Today's move: deterministic from the date, with the user's stored level
 // scaling the prescription. The session is otherwise a normal self-paced
 // session, so it reuses the same UI, logging and circuit shape.
-export async function openDailySession() {
-  await loadPrefs();
-  const plan = dailyPlan(todayStr(), { level: prefs.level });
+export async function openDailySession(override = false) {
+  let plan = override ? state.todayUsualPlan : state.todayPlan;
+  if (!plan) {
+    await loadPrefs();
+    plan = dailyPlan(todayStr(), { level: prefs.level });
+  }
   if (!plan?.session) return;
   await beginSession(plan.session, { daily: true, date: plan.date });
 }
 
-window.startDailySession = openDailySession;
+window.startDailySession = function(override) {
+  return openDailySession(override);
+};
 
 // Resolve one database exercise per prescribed name. If a same-named
 // exercise exists with an incompatible metric (a barbell "Squat" when the
@@ -294,7 +299,7 @@ async function ensureExercises(forSession) {
     }
 
     const name = byName.has(key) ? `${item.name} (quick)` : item.name;
-    const id = await addExercise(name, [metric]);
+    const id = await addExercise(name, [metric], item.pattern);
     byName.set(name.trim().toLowerCase(), { id, name, metrics: [metric] });
     ids[item.name] = id;
   }

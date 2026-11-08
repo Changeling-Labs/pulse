@@ -1,5 +1,6 @@
 // Pulse — schema for sets, exercises and fuel logs.
 import { localDateStr } from './dates.js';
+import { inferPattern, isPattern } from './patterns.js';
 
 // ── Set schema ─────────────────────────────────────────────
 //
@@ -43,7 +44,8 @@ export function normalizeExercise(exercise = {}) {
     : [exercise.metric];
   const metrics = [...new Set(known.filter(m => SET_TYPES.includes(m)))];
   if (metrics.length === 0) metrics.push('strength');
-  return { ...exercise, metric: metrics[0], metrics };
+  const pattern = isPattern(exercise.pattern) ? exercise.pattern : inferPattern(exercise.name);
+  return { ...exercise, metric: metrics[0], metrics, pattern };
 }
 
 // ── Fuel schema (Pulse Fuel) ───────────────────────────────

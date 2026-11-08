@@ -410,6 +410,16 @@ const DAILY_COPY = {
     name: "Today's full body",
     blurb: 'A balanced circuit for the whole body — push, pull, squat, hinge and core.',
   },
+  upper: {
+    title: 'Upper body',
+    name: "Today's upper body",
+    blurb: 'Push, pull and core work — no equipment needed.',
+  },
+  lower: {
+    title: 'Lower body',
+    name: "Today's lower body",
+    blurb: 'Squat, hinge and a little cardio for the lower half.',
+  },
   cardio: {
     title: 'Cardio',
     name: "Today's cardio",
@@ -438,12 +448,15 @@ const REST_STEPS = [
   'Check in on Recover so tomorrow can meet you where you are.',
 ];
 
-export function dailyPlan(dateStr, { level = 'returning' } = {}) {
+export function dailyPlan(dateStr, { level = 'returning', kind: kindOverride = null } = {}) {
   const ordinal = dailyOrdinal(dateStr);
   if (ordinal === null) return null;
 
   const cycleIndex = positiveMod(ordinal, DAILY_CYCLE.length);
-  const kind = DAILY_CYCLE[cycleIndex];
+  // The five-day cycle stays the fallback. Adaptive generation may override
+  // it with upper/lower (or any cycle kind) while keeping the same envelope.
+  const allowed = DAILY_CYCLE.includes(kindOverride) || kindOverride === 'upper' || kindOverride === 'lower';
+  const kind = allowed ? kindOverride : DAILY_CYCLE[cycleIndex];
   const copy = DAILY_COPY[kind];
   const plan = {
     date: dateStr,

@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v23';
+const CACHE = 'pulse-v24';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,8 @@ const ASSETS = [
   './js/modules/move/quick.js',
   './js/movements.js',
   './js/programmes.js',
+  './js/adaptive.js',
+  './js/patterns.js',
   './js/modules/fuel/fuel.js',
   './js/modules/recover/recover.js',
   './js/modules/settings.js',

@@ -98,6 +98,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Move: today's session (v2.15.0)** — Move gains a segmented **Today | Programs | Planner** switch, persisted as the `moveView` preference, and Planner folds in as a sub-view so the nav drops to **five tabs**. **Today's move** is deterministic from the local date over a five-day cycle — full body, cardio, core, mobility, rest — with the stored level scaling the work. Mobility days launch an existing hold routine; rest days are first-class and say rest is training, not failure. A fully completed daily session is marked with the `moveDailyDone` date preference. Planner data and maths are unchanged; no DB version bump and no network call.
 - [x] **Move: strength path clarity (v2.15.1)** — after Today's move became the hero, the bare `+` no longer made it obvious that lifts could be logged. The Today pane gains a compact **Strength training** card with **Log a set** and **Log a circuit**, the bottom card becomes **Today's training** with a `＋ Log` action, the empty state has a real **Log your first lift** button, and the Move FAB is now an extended **＋ Log set** label. No data or schema change.
 - [x] **Move: starter programmes (v2.16.0)** — three embedded plans: **3-day full body** (4 weeks), **4-day upper / lower** (4 weeks), and a **6-week beginner** ramp. The Programs pane lists them; starting one loads the session into the Planner with a banner to mark it done. The Today pane shows the next unfinished session with **Continue where you left off**, and a first-run device sees the starter programme card instead of an empty prompt. Progress lives in the `moveProgramme` preference. `js/programmes.js` is pure and tested (10 tests); no DB version bump and no network call.
+- [x] **Move: adaptive generation (v2.17.0)** — exercises carry an additive `pattern` (push, pull, squat, hinge, carry, core, cardio, mobility) inferred from the name for older records. `js/adaptive.js` adds six goal profiles, weighs the largest real pattern gaps, and chooses today's focus. The card explains the choice in one sentence, shows days since each pattern, and swaps in mobility when the latest check-in has soreness ≥7 or sleep <6 — with **Do the usual session instead** as a one-tap override. Additive and offline: no DB version bump, no new store, no readiness score.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -139,6 +140,8 @@ pulse/
     intervals.js    # Interval/hold plan model (EMOM, Tabata, mobility)
     movements.js    # Quick-session movement library + generator, daily cycle (pure)
     programmes.js   # Three embedded starter programmes + session sequence (pure)
+    adaptive.js     # Goal profiles, pattern gaps and recovery-aware daily choice (pure)
+    patterns.js     # Movement-pattern taxonomy + name inference (pure)
     cues.js         # Shared beeps + vibration patterns
     dates.js        # Local calendar-day helpers
     calc.js         # Plate calculator + session plan
@@ -177,11 +180,13 @@ Bodyweight is optional on the daily Recover check-in and stored as `weightLbs` (
 
 The **Move** tab is the daily action surface. It has three segments — **Today | Programs | Planner** — persisted as the `moveView` preference, mirroring Progress's Records | Trends switch:
 
-- **Today** — today's move, the **Strength training** card, the **Just move** card, today's stats and the sets already logged.
+- **Today** — today's adaptive move with its one-line reason, the **Strength training** card, the **Just move** card, today's stats and the sets already logged.
 - **Programs** — the three starter programmes, plus the interval protocols and mobility holds for running something on its own.
 - **Planner** — the session planner, unchanged apart from living inside Move.
 
 **Starter programmes.** Three embedded plans: **3-day full body** (4 weeks), **4-day upper / lower** (4 weeks), and a **6-week beginner** ramp that starts with two sets and adds a little each week. Starting a plan loads the session into the Planner with a banner to mark it done; the Today pane always shows the next unfinished session with **Continue where you left off**. Progress is stored in the `moveProgramme` preference, so it survives a reload, and a first-run device sees the starter programme card instead of an empty prompt. Plans use percentage-of-1RM sets, so target weights appear once the matching PR exists — log a set and the Planner has a baseline.
+
+**Adaptive generation.** Exercises carry an additive `pattern` (push, pull, squat, hinge, carry, core, cardio, mobility), inferred from the name for records created before v2.17.0 and passed explicitly by quick sessions. `js/adaptive.js` has six goal profiles — **Get moving, Build strength, Lose fat keep muscle, Return to activity, Heart health, Preserve muscle** — each a small weighting table, no machine learning. Today's move picks the focus with the largest real pattern gap weighted by the goal, then says why in one sentence (for example, "Full body today — you haven't pulled in 20 days"). The Programs pane has a Goal card and a pattern-balance row showing days since every pattern. A latest check-in with soreness ≥7 or sleep <6 swaps in mobility with a plain-language reason and a **Do the usual session instead** override. No readiness score, no diagnosis, no prediction — every suggestion is editable and skippable.
 
 **Today's move** is deterministic from the local date, like the Fuel myth-card rotation: every install sees the same kind of day. A fixed five-day cycle — **full body, cardio, core, mobility, rest** — is anchored to 2026-01-01, so the kind of day is a pure function of the date. The stored level preference scales reps and holds; it never changes the kind of day.
 
