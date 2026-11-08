@@ -4,6 +4,7 @@ import { dw, sinceDate, showToast } from '../../kernel/helpers.js';
 import { targetFromPct, buildSessionPlan } from '../../calc.js';
 import { getAllPRs } from '../../db.js';
 import { strengthExercises } from './shared.js';
+import { programmeBannerHtml } from './programme.js';
 import { burstFromEl } from '../../confetti.js';
 
 // ── Session Planner ────────────────────────────────────────
@@ -201,6 +202,7 @@ export async function renderPlanner(el) {
   }));
 
   el.innerHTML = `
+    ${programmeBannerHtml()}
     ${blocksHtml.join('')}
     <button class="btn btn-full" style="margin-bottom:16px;padding:13px;font-size:14px" onclick="addBlock()">
       + Add Movement

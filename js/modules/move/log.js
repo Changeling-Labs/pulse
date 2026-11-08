@@ -9,6 +9,7 @@ import { formatClock } from '../../timer.js';
 import { openLogModal } from './modal.js';
 import { quickCardHtml } from './quick.js';
 import { renderPlanner } from './planner.js';
+import { programmeCardHtml, programmesCardHtml, loadProgrammePreference } from './programme.js';
 import { dailyPlan, describeSession } from '../../movements.js';
 import { displayDistance } from '../../calc.js';
 
@@ -208,6 +209,7 @@ async function todayHtml() {
 
   return `
     ${await dailyCardHtml()}
+    ${programmeCardHtml({ hasHistory: allSets.length > 0 })}
     ${strengthCardHtml()}
     ${await quickCardHtml()}
     <div class="stat-grid">
@@ -232,15 +234,13 @@ async function todayHtml() {
 
 async function programsHtml() {
   return `
-    <div class="card programs-intro">
-      <div class="card-label">Programs</div>
-      <p>Run a protocol on its own, or take a mobility routine on a recovery day. Today's move stays on the Today pane.</p>
-    </div>
+    ${programmesCardHtml()}
     ${await intervalCardHtml()}`;
 }
 
 // ── Move tab ───────────────────────────────────────────────
 async function renderMove(el) {
+  await loadProgrammePreference();
   const view = MOVE_VIEWS.includes(state.moveView) ? state.moveView : 'today';
   const seg = moveSwitch(view);
 

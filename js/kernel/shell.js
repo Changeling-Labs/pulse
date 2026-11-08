@@ -18,6 +18,8 @@ export let state = {
   prWindow: '365',
   progressView: 'records',   // Records | Trends inside the Progress tab
   moveView: 'today',        // Today | Programs | Planner inside the Move tab
+  moveProgramme: null,      // active starter programme + saved progress
+  programmeSession: null,   // programme session currently loaded in the planner
   trendRange: '12w',        // 4w | 12w | 1y
   restSeconds: 90,
   fuelMyth: null,          // non-null after "show me another" — otherwise the daily card
