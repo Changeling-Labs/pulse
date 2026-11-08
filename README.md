@@ -95,6 +95,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Reliability pass (v2.11.0)** — iOS audio hardening: the cue layer now resumes a context parked in `interrupted`, declares a `playback` audio session (so the ring/silent switch no longer mutes timer cues), unlocks with a silent buffer, and re-primes on the next gesture after backgrounding. Settings gains a **Test sound** button. Fuel myth cards got a conservative evidence pass plus a permanent "Educational only — not medical advice" line.
 - [x] **Progress → Trends (v2.12.0–v2.13.0)** — the PRs tab becomes **Progress**, with a Records | Trends switch. Trends is descriptive only: weekly tonnage and sessions-per-week charts over 4 weeks / 12 weeks / 1 year, a summary row (training days, sets, tonnage, sessions per week), a top-set sparkline per lift for the last 8 sessions, a training-day consistency heatmap, bodyweight (optional Recover field) with a weekly-average line, weekly sleep/soreness/resting-HR means, and fuel trends (protein, water, whole-food share). Gaps render as gaps, a zero-tonnage week renders as a hairline, and deltas use complete weeks only. No score, no target, no prediction. `js/trends.js` is pure and tested (29 tests).
 - [x] **Move (v2.14.0)** — the Log tab becomes **Move**, the nav reads **Fuel → Move → Recover** (the daily cycle), and Move gains a one-tap **Just move** session generator: pick time (5–30 min), focus, level, equipment and impact, then work through a self-paced round checklist. Bodyweight reps log as `output`, holds as `timed`; each completed round is written as one circuit. `js/movements.js` is pure and tested (14 tests). No DB version bump, no new store, no mandatory network call.
+- [x] **Move: today's session (v2.15.0)** — Move gains a segmented **Today | Programs | Planner** switch, persisted as the `moveView` preference, and Planner folds in as a sub-view so the nav drops to **five tabs**. **Today's move** is deterministic from the local date over a five-day cycle — full body, cardio, core, mobility, rest — with the stored level scaling the work. Mobility days launch an existing hold routine; rest days are first-class and say rest is training, not failure. A fully completed daily session is marked with the `moveDailyDone` date preference. Planner data and maths are unchanged; no DB version bump and no network call.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -120,7 +121,8 @@ pulse/
       shell.js      # State, tab registry (registerTab/registerInit), routing, boot
       helpers.js    # Shared DOM/format helpers (dw, fmtDate, …)
     modules/
-      move/         # log.js (Move tab), quick.js (Just move sessions), modal.js
+      move/         # log.js (Move shell: Today | Programs | Planner),
+                    # quick.js (daily + Just move sessions), modal.js
                     # (log modal + circuits), timer.js (rest bar), intervals.js
                     # (EMOM/Tabata/holds runner), progress.js, planner.js,
                     # shared.js (exercise helpers)
@@ -132,7 +134,7 @@ pulse/
     circuits.js     # Circuit grouping (supersets)
     timer.js        # Rest countdown model
     intervals.js    # Interval/hold plan model (EMOM, Tabata, mobility)
-    movements.js    # Quick-session movement library + generator (pure)
+    movements.js    # Quick-session movement library + generator, daily cycle (pure)
     cues.js         # Shared beeps + vibration patterns
     dates.js        # Local calendar-day helpers
     calc.js         # Plate calculator + session plan
@@ -169,14 +171,27 @@ Bodyweight is optional on the daily Recover check-in and stored as `weightLbs` (
 
 ### Move
 
-The **Move** tab is the daily action surface. Its **Just move** card generates a no-equipment circuit from a small library of push, pull, squat, hinge, core and cardio movements:
+The **Move** tab is the daily action surface. It has three segments — **Today | Programs | Planner** — persisted as the `moveView` preference, mirroring Progress's Records | Trends switch:
+
+- **Today** — today's move, the **Just move** card, today's stats and the sets already logged.
+- **Programs** — the interval protocols and mobility holds, for running something on its own.
+- **Planner** — the session planner, unchanged apart from living inside Move.
+
+**Today's move** is deterministic from the local date, like the Fuel myth-card rotation: every install sees the same kind of day. A fixed five-day cycle — **full body, cardio, core, mobility, rest** — is anchored to 2026-01-01, so the kind of day is a pure function of the date. The stored level preference scales reps and holds; it never changes the kind of day.
+
+- **Full body / cardio / core** build a normal quick session (15 min, or 10 for core) with a date-derived seed, so the session is stable for that day and different the next time that kind comes round.
+- **Mobility** launches one of the existing hold routines (`lower` / `upper`), alternating across the cycle. Nothing is regenerated.
+- **Rest** is first-class: the card says rest is training, not failure, lists three gentle recovery steps and links straight to Recover.
+- **Completion** — a fully completed daily session writes the local date to the `moveDailyDone` preference; the card then says "Done for today" and offers a repeat. Ending early saves the work but does not claim the day.
+
+The **Just move** card generates a no-equipment circuit from a small library of push, pull, squat, hinge, core and cardio movements:
 
 - **Options** — 5/10/15/20/30 minutes, focus (full body, upper, lower, core, cardio), level (new, getting back, regular), equipment (nothing, dumbbells, bands) and impact (low, jumping ok). Preferences persist as the `moveQuick` device preference.
 - **Session** — a self-paced round checklist with a per-movement hold timer. Tick what you actually did; completing a round writes those sets as one circuit (`groupId` + `round`), so it renders with the normal circuit block. Closing mid-round saves nothing.
 - **Logging shape** — bodyweight reps log as `output` (the app's generic rep count) and holds as `timed`. Generated sets carry additive `source: "quick"` and `unitLabel: "reps" | "sec"`; quick blocks hide the interval runner button because they are not a timed circuit.
 - **No new data model** — exercises are created lazily per prescribed variant (Incline push-up, Knee push-up, Push-up), so each variant keeps its own honest history and PR. The generator is pure (`js/movements.js`), seeded for repeatability, and makes no network call.
 
-The nav reads **Fuel → Move → Recover → Progress → Planner → Settings**: eat, move, adapt. Move remains the boot/landing tab and the FAB target even though it sits second.
+The nav reads **Fuel → Move → Recover → Progress → Settings**: eat, move, adapt. Move remains the boot/landing tab and the FAB target even though it sits second.
 
 ## Data model
 

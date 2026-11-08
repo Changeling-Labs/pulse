@@ -1,5 +1,5 @@
 // ── Pulse Move: session planner ────────────────────────────
-import { state, renderTab, registerTab, registerInit } from '../../kernel/shell.js';
+import { state, renderTab, registerInit } from '../../kernel/shell.js';
 import { dw, sinceDate, showToast } from '../../kernel/helpers.js';
 import { targetFromPct, buildSessionPlan } from '../../calc.js';
 import { getAllPRs } from '../../db.js';
@@ -7,7 +7,10 @@ import { strengthExercises } from './shared.js';
 import { burstFromEl } from '../../confetti.js';
 
 // ── Session Planner ────────────────────────────────────────
-async function renderPlanner(el) {
+// Rendered inside Move's Planner segment. Planner actions re-render the Move
+// tab (`renderTab('log')`), which lands back on this segment because the
+// user's moveView preference still says 'planner'.
+export async function renderPlanner(el) {
   const since = sinceDate();
   const { barWeight, plates } = state.equipment;
 
@@ -207,29 +210,29 @@ async function renderPlanner(el) {
 // ── Planner actions ────────────────────────────────────────
 window.updateBlockEx = function(bi, val) {
   state.plannerWorkout[bi].exerciseId = parseInt(val);
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.updateBlockRM = function(bi, val) {
   state.plannerWorkout[bi].rmType = parseInt(val);
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.updateSetVal = function(bi, si, val) {
   const n = parseFloat(val);
-  if (!isNaN(n) && n >= 0) { state.plannerWorkout[bi].sets[si].value = n; renderTab('planner'); }
+  if (!isNaN(n) && n >= 0) { state.plannerWorkout[bi].sets[si].value = n; renderTab('log'); }
 };
 
 window.updateSetReps = function(bi, si, val) {
   const n = parseInt(val);
-  if (!isNaN(n) && n >= 1) { state.plannerWorkout[bi].sets[si].reps = n; renderTab('planner'); }
+  if (!isNaN(n) && n >= 1) { state.plannerWorkout[bi].sets[si].reps = n; renderTab('log'); }
 };
 
 window.toggleSetMode = function(bi, si) {
   const set = state.plannerWorkout[bi].sets[si];
   set.mode = set.mode === 'pct' ? 'lbs' : 'pct';
   set.value = set.mode === 'pct' ? 75 : 0;
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.toggleSetCheck = function(bi, si) {
@@ -241,7 +244,7 @@ window.toggleSetCheck = function(bi, si) {
     if (el) burstFromEl(el);
     showToast();
   }
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.addSet = function(bi) {
@@ -250,7 +253,7 @@ window.addSet = function(bi) {
   const last = block.sets[block.sets.length - 1];
   block.sets.push({ mode: last.mode, value: last.value, reps: last.reps });
   block.checked.push(false);
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.removeSet = function(bi) {
@@ -258,7 +261,7 @@ window.removeSet = function(bi) {
   if (block.sets.length <= 1) return;
   block.sets.pop();
   block.checked.pop();
-  renderTab('planner');
+  renderTab('log');
 };
 
 window.addBlock = function() {
@@ -274,7 +277,7 @@ window.addBlock = function() {
     ],
     checked: [false, false, false, false, false],
   });
-  renderTab('planner');
+  renderTab('log');
   // Scroll to new block
   setTimeout(() => {
     const el = document.getElementById(`block-${state.plannerWorkout.length - 1}`);
@@ -286,7 +289,7 @@ window.removeBlock = function(bi) {
   if (state.plannerWorkout.length <= 1) return;
   if (!confirm('Remove this movement?')) return;
   state.plannerWorkout.splice(bi, 1);
-  renderTab('planner');
+  renderTab('log');
 };
 
 
@@ -299,5 +302,3 @@ registerInit(() => {
     state.plannerWorkout[0].checked = state.plannerWorkout[0].sets.map(() => false);
   }
 });
-
-registerTab('planner', { title: 'Session Planner', render: renderPlanner });

@@ -1939,6 +1939,84 @@ body.quick-active { overflow: hidden; }
 .quick-done-stats { margin-top: 8px; font-size: 13px; color: var(--text-2); }
 .quick-recover { margin-top: 6px; font-size: 12px; }
 
+/* ── Move: Today / Programs / Planner ────────────────── */
+.move-seg {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.move-seg button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.daily-card { border-color: rgba(0, 245, 255, 0.3); }
+
+.daily-tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--glow-dim);
+  color: var(--glow);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.daily-title {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.daily-blurb {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.daily-meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.daily-action { margin-top: 14px; }
+
+.daily-done {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.rest-card { border-color: rgba(52, 211, 153, 0.32); }
+
+.rest-steps {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.rest-steps li + li { margin-top: 6px; }
+
+.mobility-card { border-color: rgba(61, 123, 224, 0.35); }
+
+.programs-intro p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

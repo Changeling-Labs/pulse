@@ -22,7 +22,7 @@ import { primeAudio, cue } from '../../cues.js';
 import {
   TIME_OPTIONS, FOCUS, LEVELS, EQUIPMENT, IMPACT,
   focusById, levelById, equipmentById, impactById,
-  buildSession, describeSession, roundPayloads,
+  buildSession, describeSession, roundPayloads, dailyPlan,
 } from '../../movements.js';
 
 const PREFS_KEY = 'moveQuick';
@@ -45,6 +45,9 @@ let restLeft = 0;
 let restId = null;
 let itemTimerId = null;
 let itemTimerIndex = -1;
+// Set while a daily session is in progress so a full finish can mark the day
+// done. A quick session leaves this null and never touches the preference.
+let dailyMeta = null;
 
 function esc(value) {
   return String(value ?? '')
@@ -257,6 +260,18 @@ window.startQuickSession = async function() {
   await beginSession(buildSession({ ...prefs }));
 };
 
+// Today's move: deterministic from the date, with the user's stored level
+// scaling the prescription. The session is otherwise a normal self-paced
+// session, so it reuses the same UI, logging and circuit shape.
+export async function openDailySession() {
+  await loadPrefs();
+  const plan = dailyPlan(todayStr(), { level: prefs.level });
+  if (!plan?.session) return;
+  await beginSession(plan.session, { daily: true, date: plan.date });
+}
+
+window.startDailySession = openDailySession;
+
 // Resolve one database exercise per prescribed name. If a same-named
 // exercise exists with an incompatible metric (a barbell "Squat" when the
 // session asks for bodyweight reps), create a "(quick)" variant instead of
@@ -289,7 +304,7 @@ async function ensureExercises(forSession) {
   return ids;
 }
 
-async function beginSession(next) {
+async function beginSession(next, meta = {}) {
   if (!next) {
     alert('No movements match those options. Try another combination.');
     return;
@@ -299,6 +314,7 @@ async function beginSession(next) {
   stopItemTimer();
   stopRest();
   session = next;
+  dailyMeta = meta.daily ? { date: meta.date || todayStr() } : null;
   round = 1;
   checked = new Set();
   doneRounds = 0;
@@ -491,7 +507,7 @@ window.completeQuickRound = async function() {
 
   showToast();
   doneRounds = round;
-  if (round >= session.rounds) { finishSession(true); return; }
+  if (round >= session.rounds) { await finishSession(true); return; }
 
   round += 1;
   checked.clear();
@@ -514,10 +530,10 @@ window.endQuickSession = async function() {
       return;
     }
   }
-  finishSession(false);
+  await finishSession(false);
 };
 
-function finishSession(finished) {
+async function finishSession(finished) {
   stopItemTimer();
   stopRest();
 
@@ -530,14 +546,21 @@ function finishSession(finished) {
     `${doneRounds} round${doneRounds === 1 ? '' : 's'} · ${loggedSets} set${loggedSets === 1 ? '' : 's'} logged · ${elapsedMin} min`;
   document.getElementById('quick-fill').style.width = '100%';
   showPane('done');
-  if (finished) cue('done');
+  if (finished) {
+    cue('done');
+    // Only a fully completed round list marks the day done. Ending early is
+    // still valid training, but it does not claim the daily session. Await the
+    // write so the card cannot race it when the overlay closes.
+    if (dailyMeta) await setPref('moveDailyDone', dailyMeta.date).catch(() => {});
+  }
 }
 
 // ── Close / repeat ─────────────────────────────────────────
 window.repeatQuickSession = async function() {
   if (!session) { closeQuickOverlay(); return; }
   const again = JSON.parse(JSON.stringify(session));
-  await beginSession(again);
+  const meta = dailyMeta ? { daily: true, date: dailyMeta.date } : {};
+  await beginSession(again, meta);
 };
 
 window.closeQuickOverlay = function() {
@@ -546,6 +569,7 @@ window.closeQuickOverlay = function() {
   session = null;
   exerciseIds = null;
   checked = new Set();
+  dailyMeta = null;
   const overlay = document.getElementById('quick-overlay');
   if (overlay) overlay.classList.remove('open');
   document.body.classList.remove('quick-active');

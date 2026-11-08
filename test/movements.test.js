@@ -5,6 +5,7 @@ import {
   focusById, levelById, equipmentById, impactById,
   variantName, targetFor, unitFor,
   eligibleMovements, buildSession, describeSession, roundPayloads,
+  DAILY_CYCLE, DAILY_ANCHOR, dailyOrdinal, dailyKind, dailyPlan,
 } from '../js/movements.js';
 
 const PATTERNS = ['push', 'pull', 'squat', 'hinge', 'core', 'cardio'];
@@ -212,4 +213,106 @@ test('generation is offline and free of clock reads', () => {
   const b = buildSession({ minutes: 10, seed: 123 });
   assert.equal(a.estimatedMin, b.estimatedMin);
   assert.equal(describeSession(a), describeSession(b));
+});
+
+// ── Daily session ──────────────────────────────────────────
+test('the daily cycle is anchored and advances one kind per day', () => {
+  assert.deepEqual(DAILY_CYCLE, ['full', 'cardio', 'core', 'mobility', 'rest']);
+  assert.equal(dailyOrdinal(DAILY_ANCHOR), 0);
+  assert.equal(dailyOrdinal('2026-01-02'), 1);
+
+  const kinds = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05']
+    .map(dailyKind);
+  assert.deepEqual(kinds, ['full', 'cardio', 'core', 'mobility', 'rest']);
+
+  // Five days later the cycle repeats, and the checkpoint date lands on full.
+  assert.equal(dailyKind('2026-01-06'), 'full');
+  assert.equal(dailyKind('2026-11-07'), 'full');
+
+  // Consecutive days never repeat the kind.
+  let previous = dailyKind('2026-03-01');
+  for (let day = 2; day <= 20; day++) {
+    const date = `2026-03-${String(day).padStart(2, '0')}`;
+    const kind = dailyKind(date);
+    assert.notEqual(kind, previous, `${date} repeated ${kind}`);
+    previous = kind;
+  }
+});
+
+test('the daily plan is deterministic for a date and level', () => {
+  const a = dailyPlan('2026-11-07', { level: 'returning' });
+  const b = dailyPlan('2026-11-07', { level: 'returning' });
+  assert.deepEqual(a, b);
+  assert.equal(a.kind, 'full');
+  assert.equal(a.date, '2026-11-07');
+  assert.equal(a.session.name, "Today's full body");
+  assert.ok(a.session.items.length >= 3);
+
+  // A different date is a different session even within the same kind.
+  const other = dailyPlan('2026-11-02', { level: 'returning' });
+  assert.equal(other.kind, 'full');
+  assert.notEqual(other.session.seed, a.session.seed);
+});
+
+test('level scales a daily session without changing its shape', () => {
+  const beginner = dailyPlan('2026-11-07', { level: 'new' });
+  const regular = dailyPlan('2026-11-07', { level: 'regular' });
+
+  assert.equal(regular.kind, beginner.kind);
+  assert.deepEqual(
+    regular.session.items.map(i => i.movementId),
+    beginner.session.items.map(i => i.movementId),
+  );
+  regular.session.items.forEach((item, i) => {
+    assert.ok(item.target >= beginner.session.items[i].target);
+  });
+});
+
+test('daily sessions are bodyweight-only and low impact', () => {
+  for (const date of ['2026-01-01', '2026-01-02', '2026-01-03', '2026-02-12']) {
+    const plan = dailyPlan(date);
+    for (const item of plan.session.items) {
+      const movement = MOVEMENT_BY_ID[item.movementId];
+      assert.equal(movement.equipment, 'none');
+      assert.ok(!movement.highImpact);
+      assert.ok(item.target > 0);
+    }
+  }
+});
+
+test('mobility days point at an existing hold routine', () => {
+  const upper = dailyPlan('2026-01-04');
+  assert.equal(upper.kind, 'mobility');
+  assert.equal(upper.session, null);
+  assert.equal(upper.routineId, 'upper');
+  assert.equal(upper.routineName, 'Upper body');
+
+  const lower = dailyPlan('2026-01-09');
+  assert.equal(lower.kind, 'mobility');
+  assert.equal(lower.routineId, 'lower');
+  assert.equal(lower.routineName, 'Lower body');
+  assert.match(lower.routineHint, /holds/);
+});
+
+test('rest days are first class and never carry a session', () => {
+  const rest = dailyPlan('2026-01-05');
+  assert.equal(rest.kind, 'rest');
+  assert.equal(rest.session, null);
+  assert.equal(rest.title, 'Rest day');
+  assert.match(rest.blurb, /Rest is training, not failure/);
+  assert.ok(Array.isArray(rest.recovery));
+  assert.equal(rest.recovery.length, 3);
+  assert.ok(rest.recovery.some(step => /Sleep/i.test(step)));
+});
+
+test('dailyPlan rejects impossible or malformed dates', () => {
+  for (const date of ['', 'not-a-date', '2026-13-01', '2026-02-30', '2027-02-29', '2026-1-1']) {
+    assert.equal(dailyOrdinal(date), null, `${date} should be invalid`);
+    assert.equal(dailyKind(date), null);
+    assert.equal(dailyPlan(date), null);
+  }
+
+  // Real leap days are valid.
+  assert.notEqual(dailyOrdinal('2028-02-29'), null);
+  assert.notEqual(dailyPlan('2028-02-29'), null);
 });

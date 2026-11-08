@@ -10,6 +10,8 @@
 // level. Nothing here talks to the network, and nothing is personalised
 // beyond the options the user picked.
 
+import { getHoldRoutine } from './intervals.js';
+
 export const FOCUS = [
   { id: 'full',   label: 'Full body',  patterns: ['push', 'pull', 'squat', 'hinge', 'core', 'cardio'] },
   { id: 'upper',  label: 'Upper body', patterns: ['push', 'pull', 'core'] },
@@ -341,6 +343,151 @@ export function buildSession({
 export function describeSession(session) {
   if (!session) return 'No session';
   return `${session.rounds} rounds · ${session.items.length} movements · ~${session.estimatedMin} min`;
+}
+
+// ── Daily session ──────────────────────────────────────────
+// Today's move is drawn from a fixed five-day cycle anchored to a known date,
+// so every install sees the same kind of session on the same day. It is pure:
+// no clock, no network, no stored history — the date string is the only input.
+// The level still scales the prescription, exactly as it does for a quick
+// session, because that is a preference rather than part of the plan.
+export const DAILY_CYCLE = ['full', 'cardio', 'core', 'mobility', 'rest'];
+export const DAILY_ANCHOR = '2026-01-01';
+
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function parseDateStr(dateStr) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr ?? ''));
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return null;
+  const lastDay = month === 2 && isLeapYear(year) ? 29 : MONTH_DAYS[month - 1];
+  if (day < 1 || day > lastDay) return null;
+  return { year, month, day };
+}
+
+// Days since 1970-01-01 using civil-date arithmetic (Howard Hinnant's
+// `days_from_civil`), which avoids `Date` and any timezone/DST surprises.
+function daysFromCivil(year, month, day) {
+  const y = year - (month <= 2 ? 1 : 0);
+  const era = Math.floor(y / 400);
+  const yearOfEra = y - era * 400;
+  const dayOfYear = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1;
+  const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4)
+    - Math.floor(yearOfEra / 100) + dayOfYear;
+  return era * 146097 + dayOfEra - 719468;
+}
+
+function positiveMod(n, size) {
+  return ((n % size) + size) % size;
+}
+
+// Days since the anchor. Null for anything that is not a real YYYY-MM-DD date.
+export function dailyOrdinal(dateStr) {
+  const date = parseDateStr(dateStr);
+  if (!date) return null;
+  const anchor = parseDateStr(DAILY_ANCHOR);
+  return daysFromCivil(date.year, date.month, date.day)
+    - daysFromCivil(anchor.year, anchor.month, anchor.day);
+}
+
+// The kind of day the cycle lands on: full, cardio, core, mobility or rest.
+export function dailyKind(dateStr) {
+  const ordinal = dailyOrdinal(dateStr);
+  if (ordinal === null) return null;
+  return DAILY_CYCLE[positiveMod(ordinal, DAILY_CYCLE.length)];
+}
+
+const DAILY_COPY = {
+  full: {
+    title: 'Full body',
+    name: "Today's full body",
+    blurb: 'A balanced circuit for the whole body — push, pull, squat, hinge and core.',
+  },
+  cardio: {
+    title: 'Cardio',
+    name: "Today's cardio",
+    blurb: 'Get the heart rate up with no equipment and no counting the clock.',
+  },
+  core: {
+    title: 'Core',
+    name: "Today's core",
+    blurb: 'Steady trunk work. Quality of position beats speed.',
+  },
+  mobility: {
+    title: 'Mobility',
+    name: 'Mobility',
+    blurb: 'Holds and positions, not effort. Move gently and breathe.',
+  },
+  rest: {
+    title: 'Rest day',
+    name: 'Rest day',
+    blurb: 'Rest is training, not failure. Adaptation happens while you recover.',
+  },
+};
+
+const REST_STEPS = [
+  'Sleep is the main session today — aim for a full night.',
+  'A short, easy walk is fine. It is not a workout.',
+  'Check in on Recover so tomorrow can meet you where you are.',
+];
+
+export function dailyPlan(dateStr, { level = 'returning' } = {}) {
+  const ordinal = dailyOrdinal(dateStr);
+  if (ordinal === null) return null;
+
+  const cycleIndex = positiveMod(ordinal, DAILY_CYCLE.length);
+  const kind = DAILY_CYCLE[cycleIndex];
+  const copy = DAILY_COPY[kind];
+  const plan = {
+    date: dateStr,
+    ordinal,
+    kind,
+    cycleIndex,
+    cycleLength: DAILY_CYCLE.length,
+    title: copy.title,
+    blurb: copy.blurb,
+    session: null,
+    routineId: null,
+    routineName: null,
+    routineHint: null,
+    recovery: null,
+  };
+
+  if (kind === 'rest') {
+    return { ...plan, recovery: [...REST_STEPS] };
+  }
+
+  if (kind === 'mobility') {
+    // Alternate the two existing hold routines so both sides of the body get
+    // attention across the cycle; the routine is launched, not regenerated.
+    const routineId = positiveMod(ordinal, 2) === 0 ? 'lower' : 'upper';
+    const routine = getHoldRoutine(routineId);
+    return {
+      ...plan,
+      routineId,
+      routineName: routine?.name ?? null,
+      routineHint: routine?.hint ?? null,
+    };
+  }
+
+  const minutes = kind === 'core' ? 10 : 15;
+  const session = buildSession({
+    minutes,
+    focus: kind,
+    equipment: 'none',
+    impact: 'low',
+    level,
+    seed: ordinal,
+  });
+  if (session) session.name = copy.name;
+  return { ...plan, session };
 }
 
 // ── Logging ────────────────────────────────────────────────
