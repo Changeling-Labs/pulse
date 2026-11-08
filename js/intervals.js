@@ -27,6 +27,7 @@ export const HOLD_ROUTINES = [
   {
     id: 'lower',
     name: 'Lower body',
+    context: 'move',
     hint: '6 holds · 4 minutes',
     prepSec: 5,
     transitionSec: 5,
@@ -42,6 +43,7 @@ export const HOLD_ROUTINES = [
   {
     id: 'upper',
     name: 'Upper body',
+    context: 'move',
     hint: '5 holds · 3 minutes',
     prepSec: 5,
     transitionSec: 5,
@@ -53,6 +55,37 @@ export const HOLD_ROUTINES = [
       { label: 'Lat stretch — right', seconds: 35 },
     ],
   },
+  {
+    id: 'wind-down',
+    name: 'Evening wind-down',
+    context: 'recover',
+    hint: '6 holds · 5 minutes',
+    prepSec: 5,
+    transitionSec: 5,
+    holds: [
+      { label: 'Neck and shoulder release — left', seconds: 30 },
+      { label: 'Neck and shoulder release — right', seconds: 30 },
+      { label: 'Doorway pec stretch', seconds: 40 },
+      { label: 'Seated forward fold', seconds: 45 },
+      { label: 'Legs up the wall', seconds: 60 },
+      { label: 'Slow breathing', seconds: 60 },
+    ],
+  },
+  {
+    id: 'desk-reset',
+    name: 'Desk reset',
+    context: 'recover',
+    hint: '4 holds · 3 minutes',
+    prepSec: 5,
+    transitionSec: 5,
+    holds: [
+      { label: 'Neck side stretch — left', seconds: 30 },
+      { label: 'Neck side stretch — right', seconds: 30 },
+      { label: 'Doorway pec stretch', seconds: 40 },
+      { label: 'Hip flexor stretch — left', seconds: 40 },
+      { label: 'Hip flexor stretch — right', seconds: 40 },
+    ],
+  },
 ];
 
 export function getPreset(id) {
@@ -61,6 +94,10 @@ export function getPreset(id) {
 
 export function getHoldRoutine(id) {
   return HOLD_ROUTINES.find(r => r.id === id) ?? null;
+}
+
+export function holdRoutinesFor(context) {
+  return HOLD_ROUTINES.filter(routine => (routine.context ?? 'move') === context);
 }
 
 // ── Plan building ──────────────────────────────────────────

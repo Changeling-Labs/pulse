@@ -30,6 +30,76 @@ export function severity(n) {
   return 'high';
 }
 
+// ── Sleep notes ────────────────────────────────────────────
+// Embedded, conservative sleep-hygiene cards. They describe common,
+// low-risk habits — not insomnia treatment, diagnosis or a guarantee.
+export const SLEEP_CARDS = Object.freeze([
+  {
+    id: 'sleep-wake-time',
+    title: 'A steady wake time',
+    body: 'A consistent wake time anchors the body clock more reliably than chasing a perfect bedtime.',
+    action: 'Pick a wake time you can keep, including most weekends.',
+  },
+  {
+    id: 'sleep-morning-light',
+    title: 'Morning light',
+    body: 'Daylight in the first hour or two helps set the daily rhythm.',
+    action: 'Step outside or sit by a bright window with breakfast.',
+  },
+  {
+    id: 'sleep-caffeine',
+    title: 'Caffeine has a long tail',
+    body: 'Caffeine can stay active for hours, and sensitivity varies a lot between people.',
+    action: 'If sleep feels fragile, try your last coffee by early afternoon.',
+  },
+  {
+    id: 'sleep-dim-last-hour',
+    title: 'Dim the last hour',
+    body: 'Bright light late at night tells the brain it is still daytime.',
+    action: 'Lower the lamps, dim screens, or read on paper.',
+  },
+  {
+    id: 'sleep-cool-dark-quiet',
+    title: 'Cool, dark, quiet',
+    body: 'Most people sleep a little better in a room that is cool, dark and quiet.',
+    action: 'Cool the room, block light and reduce noise where you can.',
+  },
+  {
+    id: 'sleep-alcohol',
+    title: 'Alcohol is not a sleep aid',
+    body: 'Alcohol can make you drowsy but fragments sleep later in the night.',
+    action: 'If you drink, leave a gap before bed and watch the amount.',
+  },
+  {
+    id: 'sleep-dont-chase',
+    title: "Don't chase sleep",
+    body: 'Lying awake and clock-watching can make the bed feel like a struggle.',
+    action: 'If you are awake for a while, get up, keep lights low and return when sleepy.',
+  },
+  {
+    id: 'sleep-wind-down',
+    title: 'A repeated wind-down cue',
+    body: 'A short, repeated routine can help signal that the day is closing.',
+    action: 'Try the wind-down player above: a few holds, slow breathing, lights low.',
+  },
+]);
+
+function sleepCardByIndex(index) {
+  return { ...SLEEP_CARDS[((index % SLEEP_CARDS.length) + SLEEP_CARDS.length) % SLEEP_CARDS.length] };
+}
+
+// Deterministic daily note — rotates once per calendar day.
+export function getDailySleepCard(dateStr = null) {
+  const date = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+  const epochDay = Math.floor(date.getTime() / MS_DAY);
+  return sleepCardByIndex(epochDay);
+}
+
+// Another card, for the "Another" button.
+export function getRandomSleepCard(rng = Math.random) {
+  return sleepCardByIndex(Math.floor(rng() * SLEEP_CARDS.length));
+}
+
 // ── Date windows ───────────────────────────────────────────
 // Parse as UTC noon so DST transitions can never land on the previous day.
 function parse(dateStr) {

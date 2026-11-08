@@ -9,14 +9,17 @@ import { getRecoveryLog, getRecoveryLogs, saveRecoveryLog, deleteRecoveryLog, ge
 import {
   seriesFor, periodStats, comparePeriods, sorenessLabel, severity,
   barFraction, formatMetric, describeDelta, METRICS,
+  getDailySleepCard, getRandomSleepCard,
 } from '../../recover.js';
 import { buildInsight } from '../../insights.js';
 import { toKg, toLbs, displayWeight } from '../../calc.js';
+import { holdRoutinesFor } from '../../intervals.js';
 import { handleSaveError } from '../../kernel/errors.js';
 
 let windowDays = 7;
 let editingDate = null;      // null = today
 let draft = null;            // { date, sleepHours, soreness, restingHr, note }
+let sleepCardOverride = null;
 let savedAt = null;          // ms timestamp of the last successful save
 
 const esc = s => String(s ?? '')
@@ -295,6 +298,48 @@ function historyCard(logs) {
     </div>`;
 }
 
+// ── Wind-down + sleep note ─────────────────────────────────
+function windDownCardHtml() {
+  const routines = holdRoutinesFor('recover');
+  if (routines.length === 0) return '';
+  return `
+    <div class="card wind-down-card">
+      <div class="card-head">
+        <div class="card-label" style="margin-bottom:0">Wind-down</div>
+        <span class="wind-down-tag">${routines.length} routines</span>
+      </div>
+      <p class="wind-down-blurb">Holds and slow breathing, not effort. Pick a short routine to close the day.</p>
+      <div class="wind-down-options">
+        ${routines.map(routine => `
+          <button type="button" class="wind-down-option" onclick="startHoldRoutine('${routine.id}')">
+            <span class="wind-down-name">${routine.name}</span>
+            <span class="wind-down-hint">${routine.hint}</span>
+          </button>`).join('')}
+      </div>
+      <div class="wind-down-note">The runner is the same one Move uses — pause, skip or end any time.</div>
+    </div>`;
+}
+
+function sleepCardHtml(today) {
+  const card = sleepCardOverride ?? getDailySleepCard(today);
+  return `
+    <div class="card sleep-card">
+      <div class="card-head">
+        <div class="card-label" style="margin-bottom:0">Sleep note</div>
+        <button type="button" class="btn btn-ghost" style="font-size:12px;padding:4px 8px" onclick="newSleepCard()">Another</button>
+      </div>
+      <div class="sleep-title">${card.title}</div>
+      <p class="sleep-body">${card.body}</p>
+      <div class="sleep-action">Try this: ${card.action}</div>
+      <div class="sleep-disclaimer">General sleep hygiene — not medical advice. Persistent sleep problems deserve a clinician.</div>
+    </div>`;
+}
+
+window.newSleepCard = function() {
+  sleepCardOverride = getRandomSleepCard();
+  renderTab('recover');
+};
+
 // ── Tab ────────────────────────────────────────────────────
 async function renderRecover(el) {
   const today = todayStr();
@@ -316,6 +361,8 @@ async function renderRecover(el) {
 
   el.innerHTML = `
     ${checkinCard(dateLabel(date), date === today)}
+    ${windDownCardHtml()}
+    ${sleepCardHtml(today)}
     ${summaryCard(logs, today)}
     ${trendsCard(logs, today)}
     ${insightsCard(sets, logs, today)}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PRESETS, HOLD_ROUTINES, getPreset, getHoldRoutine,
+  PRESETS, HOLD_ROUTINES, getPreset, getHoldRoutine, holdRoutinesFor,
   blocksForIntervals, blocksForHolds, totalSeconds, workSeconds,
   newRun, tickRun, pauseRun, resumeRun, skipBlock,
   runProgress, completedEfforts, runSummary, describeBlock,
@@ -58,6 +58,23 @@ test('hold routines become named holds with transitions between them', () => {
   assert.equal(blocks.filter(b => b.type === 'rest').length, routine.holds.length - 1);
   assert.ok(blocks.filter(b => b.type === 'rest').every(b => b.label === 'Transition'));
   assert.equal(workSeconds(blocks), routine.holds.reduce((s, h) => s + h.seconds, 0));
+});
+
+test('hold routines are well-formed and split by surface', () => {
+  const ids = new Set(HOLD_ROUTINES.map(r => r.id));
+  assert.equal(ids.size, HOLD_ROUTINES.length);
+
+  for (const routine of HOLD_ROUTINES) {
+    assert.ok(routine.name && routine.hint);
+    assert.ok(['move', 'recover'].includes(routine.context));
+    assert.ok(routine.holds.length > 0);
+    assert.ok(routine.holds.every(hold => hold.label && hold.seconds > 0));
+  }
+
+  assert.deepEqual(holdRoutinesFor('move').map(r => r.id), ['lower', 'upper']);
+  const recover = holdRoutinesFor('recover').map(r => r.id);
+  assert.deepEqual(recover, ['wind-down', 'desk-reset']);
+  assert.equal(getHoldRoutine('wind-down').name, 'Evening wind-down');
 });
 
 test('an empty or malformed routine yields no blocks', () => {

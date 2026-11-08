@@ -4,7 +4,7 @@ import { dw, fmtDate, todayStr, fmtDuration, sinceDate } from '../../kernel/help
 import { getSets, deleteSet, deleteSetsByGroup, getPref, setPref, getRecoveryLogs } from '../../db.js';
 import { groupByCircuit } from '../../circuits.js';
 import { countPRSets } from '../../pr.js';
-import { PRESETS, HOLD_ROUTINES } from '../../intervals.js';
+import { PRESETS, holdRoutinesFor } from '../../intervals.js';
 import { formatClock } from '../../timer.js';
 import { openLogModal } from './modal.js';
 import { quickCardHtml } from './quick.js';
@@ -207,7 +207,7 @@ async function intervalCardHtml() {
       </div>
       <div class="interval-holds">
         <span class="interval-holds-label">Mobility holds</span>
-        ${HOLD_ROUTINES.map(r => `
+        ${holdRoutinesFor('move').map(r => `
           <button type="button" class="interval-hold" onclick="startHoldRoutine('${r.id}')">
             ${r.name}<span>${r.hint}</span>
           </button>`).join('')}

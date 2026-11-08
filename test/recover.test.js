@@ -4,6 +4,7 @@ import { normalizeRecoveryLog, validateRecoveryLog, migrateBackup, BACKUP_VERSIO
 import {
   shiftDate, dateRange, seriesFor, meanOf, periodStats, comparePeriods,
   sorenessLabel, severity, barFraction, formatMetric, describeDelta, METRICS,
+  SLEEP_CARDS, getDailySleepCard, getRandomSleepCard,
 } from '../js/recover.js';
 
 // ── Schema ─────────────────────────────────────────────────
@@ -168,6 +169,42 @@ test('describeDelta reads naturally and handles zero', () => {
 
 test('METRICS covers the three tracked signals', () => {
   assert.deepEqual(METRICS.map(m => m.key), ['sleepHours', 'soreness', 'restingHr']);
+});
+
+// ── Sleep notes ────────────────────────────────────────────
+test('sleep cards are well-formed and uniquely identified', () => {
+  assert.ok(SLEEP_CARDS.length >= 6);
+  assert.equal(new Set(SLEEP_CARDS.map(c => c.id)).size, SLEEP_CARDS.length);
+  for (const card of SLEEP_CARDS) {
+    assert.ok(card.title && card.body && card.action, `${card.id} has all fields`);
+    assert.ok(card.title.length <= 60);
+    assert.match(card.action, /^(Pick|Step|If|Lower|Cool|Try)/);
+  }
+});
+
+test('sleep copy stays conservative and non-medical', () => {
+  const copy = SLEEP_CARDS.map(c => `${c.title} ${c.body} ${c.action}`).join(' ');
+  assert.doesNotMatch(copy, /cure|diagnos|treatment|guarantee|insomnia/i);
+});
+
+test('getDailySleepCard is deterministic and rotates across days', () => {
+  const a = getDailySleepCard('2026-11-05');
+  const b = getDailySleepCard('2026-11-05');
+  assert.deepEqual(a, b);
+  assert.ok(SLEEP_CARDS.some(c => c.id === a.id));
+
+  const seen = new Set();
+  for (let day = 1; day <= 28; day++) {
+    const date = `2026-11-${String(day).padStart(2, '0')}`;
+    seen.add(getDailySleepCard(date).id);
+  }
+  assert.ok(seen.size > 1);
+});
+
+test('getRandomSleepCard returns a member of the set', () => {
+  const card = getRandomSleepCard(() => 0.999999);
+  assert.ok(SLEEP_CARDS.some(c => c.id === card.id));
+  assert.equal(getRandomSleepCard(() => 0).id, SLEEP_CARDS[0].id);
 });
 
 // ── Backups ────────────────────────────────────────────────
