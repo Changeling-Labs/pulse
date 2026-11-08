@@ -1,9 +1,10 @@
 // ── Pulse kernel: state, routing, boot ─────────────────
 // State lives in `state` (exported as a live binding — mutate its
 // properties, never reassign the import). Tabs register themselves via
-// `registerTab(name, def)`; `def` may provide { title, fabLabel, fabAction,
-// render }. The FAB is contextual: modules pass fabLabel/fabAction for
-// tabs that need one, and renderTab hides it otherwise.
+// `registerTab(name, def)`; `def` may provide { title, fabLabel, fabText,
+// fabAction, render }. The FAB is contextual: modules pass fabLabel/fabAction
+// for tabs that need one, and may add fabText to turn the circle into an
+// extended, labelled action. renderTab hides it otherwise.
 
 import { openDB, migrateExerciseMetrics, seedIfEmpty, getExercises, getEquipment, getPref } from '../db.js';
 
@@ -59,13 +60,19 @@ export async function renderTab(tab) {
   h1.textContent = def.title || 'Pulse';
 
   const fab = document.getElementById('fab');
+  const fabText = document.getElementById('fab-text');
   if (def.fabLabel) {
     fab.classList.remove('hidden');
     fab.setAttribute('aria-label', def.fabLabel);
     fab.onclick = def.fabAction || null;
+    const text = def.fabText || '';
+    if (fabText) fabText.textContent = text;
+    fab.classList.toggle('has-text', Boolean(text));
   } else {
     fab.classList.add('hidden');
+    fab.classList.remove('has-text');
     fab.onclick = null;
+    if (fabText) fabText.textContent = '';
   }
 
   await def.render(content);

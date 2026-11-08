@@ -260,6 +260,26 @@ select:focus, input:focus { border-color: var(--brand-hi); }
 #fab:active { transform: scale(0.93); }
 #fab.hidden { display: none; }
 
+#fab.has-text {
+  width: auto;
+  padding: 0 18px 0 16px;
+  border-radius: 26px;
+  gap: 7px;
+}
+
+#fab .fab-plus { font-size: 22px; line-height: 1; margin-top: -1px; }
+
+#fab .fab-text {
+  display: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+#fab.has-text .fab-text { display: inline; }
+
 /* ── Rest timer bar ──────────────────────────────────── */
 .rest-bar {
   position: fixed;
@@ -1988,6 +2008,31 @@ body.quick-active { overflow: hidden; }
 }
 
 .daily-action { margin-top: 14px; }
+
+.strength-card { border-color: var(--border); }
+
+.strength-blurb {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.strength-actions { display: flex; gap: 8px; }
+.strength-actions .btn { flex: 1; }
+
+.card-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
 .daily-done {
   margin-top: 12px;

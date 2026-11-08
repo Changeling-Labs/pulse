@@ -116,6 +116,28 @@ window.goRecover = function() {
   switchTab('recover');
 };
 
+// One entry point for logging your own strength work. `mode` lets the compact
+// card open the circuit tab directly while the FAB keeps the single-set flow.
+window.openMoveLog = function(mode) {
+  openLogModal();
+  if (mode === 'circuit') window.setLogMode('circuit');
+};
+
+// The daily card is the hero; this card makes the other valid path explicit.
+// It is deliberately not another primary button: "Start today's move" keeps
+// the strongest visual weight, while logging a lift is always one tap away.
+function strengthCardHtml() {
+  return `
+    <div class="card strength-card">
+      <div class="card-label">Strength training</div>
+      <p class="strength-blurb">Already have a plan? Log a lift or a circuit.</p>
+      <div class="strength-actions">
+        <button type="button" class="btn" onclick="openMoveLog()">＋ Log a set</button>
+        <button type="button" class="btn btn-ghost" onclick="openMoveLog('circuit')">Log a circuit</button>
+      </div>
+    </div>`;
+}
+
 // ── Intervals card ─────────────────────────────────────────
 // The runner itself lives in ./intervals.js; this card is the entry point.
 function lastRunLine(last) {
@@ -175,13 +197,18 @@ async function todayHtml() {
   const blocks = groupByCircuit(todaySets);
 
   const setsHtml = blocks.length === 0
-    ? `<div class="empty"><div class="icon">💪</div><p>Nothing logged today yet. Start with today's move above, or tap + for a set.</p></div>`
+    ? `<div class="empty">
+        <div class="icon">💪</div>
+        <p>Nothing logged today yet. Start with today's move above, or log a lift.</p>
+        <button class="btn" onclick="openMoveLog()">Log your first lift</button>
+      </div>`
     : blocks.map(block =>
         block.groupId ? circuitBlockHtml(block, exMap) : setRowHtml(block.items[0], exMap)
       ).join('');
 
   return `
     ${await dailyCardHtml()}
+    ${strengthCardHtml()}
     ${await quickCardHtml()}
     <div class="stat-grid">
       <div class="stat"><div class="stat-val">${todaySets.length}</div><div class="stat-lbl">sets today</div></div>
@@ -190,8 +217,14 @@ async function todayHtml() {
     </div>
     <div class="card">
       <div class="card-head">
-        <div class="card-label">Today · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
-        <button class="btn btn-ghost rest-start" onclick="startRest()">⏱ Rest</button>
+        <div>
+          <div class="card-label" style="margin-bottom:0">Today's training</div>
+          <div class="card-sub">${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="btn btn-ghost rest-start" onclick="openMoveLog()">＋ Log</button>
+          <button class="btn btn-ghost rest-start" onclick="startRest()">⏱ Rest</button>
+        </div>
       </div>
       ${setsHtml}
     </div>`;
@@ -284,4 +317,4 @@ window.deleteCircuit = async function(groupId) {
   renderTab('log');
 };
 
-registerTab('log', { title: 'Move', fabLabel: 'Log a set', fabAction: () => openLogModal(), render: renderMove });
+registerTab('log', { title: 'Move', fabLabel: 'Log a set', fabText: 'Log set', fabAction: () => openLogModal(), render: renderMove });
