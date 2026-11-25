@@ -10,20 +10,40 @@ import {
   migrateBackup,
 } from '../js/schema.js';
 
-const VALID_LOG = {
+const NEW_LOG = {
   id: 'uuid-1',
   timestamp: '2026-11-05T12:30:00.000Z',
   date: '2026-11-05',
-  proteinGrams: 30,
-  calories: 400,
+  components: {
+    protein: { size: 'palm', count: 1 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 0 },
+    fat: { size: 'thumb', count: 1 },
+  },
+  proteinGrams: 25,
+  carbsGrams: 0,
+  fatGrams: 10,
+  calories: 190,                 // 25 × 4 + 10 × 9
+  vegPortions: 1,
   isWholeFood: true,
   handPortions: { palms: 1, fists: 1, cupped: 0, thumbs: 1 },
   notes: 'post-workout lunch',
 };
 
-test('normalizeFuelLog passes a valid log through unchanged', () => {
-  const out = normalizeFuelLog(VALID_LOG);
-  assert.deepEqual(out, VALID_LOG);
+const LEGACY_LOG = {
+  id: 'uuid-legacy',
+  timestamp: '2026-11-04T12:30:00.000Z',
+  date: '2026-11-04',
+  proteinGrams: 30,
+  calories: 400,
+  isWholeFood: false,
+  handPortions: { palms: 1, fists: 1, cupped: 0, thumbs: 1 },
+  notes: 'old shape',
+};
+
+test('normalizeFuelLog passes a valid new-shape log through unchanged', () => {
+  const out = normalizeFuelLog(NEW_LOG);
+  assert.deepEqual(out, NEW_LOG);
 });
 
 test('normalizeFuelLog fills defaults for a sparse record', () => {
@@ -33,10 +53,67 @@ test('normalizeFuelLog fills defaults for a sparse record', () => {
   assert.match(out.timestamp, /^\d{4}-\d{2}-\d{2}T/);
   assert.match(out.date, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(out.proteinGrams, 0);
+  assert.equal(out.carbsGrams, 0);
+  assert.equal(out.fatGrams, 0);
   assert.equal(out.calories, 0);
+  assert.equal(out.vegPortions, 0);
   assert.equal(out.isWholeFood, true);
+  assert.deepEqual(out.components, {
+    protein: { size: 'palm', count: 0 },
+    veg: { size: 'fist', count: 0 },
+    carbs: { size: 'cupped', count: 0 },
+    fat: { size: 'thumb', count: 0 },
+  });
   assert.deepEqual(out.handPortions, { palms: 0, fists: 0, cupped: 0, thumbs: 0 });
   assert.equal(out.notes, '');
+});
+
+test('normalizeFuelLog migrates legacy handPortions into components', () => {
+  const out = normalizeFuelLog(LEGACY_LOG);
+  assert.deepEqual(out.components, {
+    protein: { size: 'palm', count: 1 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 0 },
+    fat: { size: 'thumb', count: 1 },
+  });
+  assert.deepEqual(out.handPortions, { palms: 1, fists: 1, cupped: 0, thumbs: 1 });
+  assert.equal(out.proteinGrams, 30);       // legacy macro survives
+  assert.equal(out.calories, 400);          // legacy macro survives
+  assert.equal(out.carbsGrams, 0);
+  assert.equal(out.fatGrams, 10);
+  assert.equal(out.vegPortions, 1);
+});
+
+test('normalizeFuelLog derives legacy macros when they are missing or invalid', () => {
+  const out = normalizeFuelLog({
+    handPortions: { palms: 2.9, fists: -1, cupped: 0, thumbs: 0 },
+    proteinGrams: -5,
+    calories: 'lots',
+  });
+  assert.equal(out.components.protein.count, 2);
+  assert.equal(out.components.veg.count, 0);
+  assert.equal(out.proteinGrams, 50);
+  assert.equal(out.calories, 200);
+});
+
+test('normalizeFuelLog always recomputes macros for the new component shape', () => {
+  const out = normalizeFuelLog({
+    components: {
+      protein: { size: 'fist', count: 1 },
+      veg: { size: 'thumb', count: 1 },
+      carbs: { size: 'fist', count: 1 },
+      fat: { size: 'palm', count: 1 },
+    },
+    proteinGrams: 999,
+    carbsGrams: 999,
+    fatGrams: 999,
+    calories: 9999,
+  });
+  assert.equal(out.proteinGrams, 40);
+  assert.equal(out.carbsGrams, 30);
+  assert.equal(out.fatGrams, 20);
+  assert.equal(out.vegPortions, 0.25);
+  assert.equal(out.calories, 460);
 });
 
 test('normalizeFuelLog derives the date from the timestamp when missing', () => {
@@ -46,45 +123,57 @@ test('normalizeFuelLog derives the date from the timestamp when missing', () => 
   assert.equal(out.timestamp, new Date(ts).toISOString());
 });
 
-test('normalizeFuelLog rejects garbage numbers and clamps negatives to 0', () => {
-  const out = normalizeFuelLog({ proteinGrams: -5, calories: 'lots', handPortions: { palms: 2.9, fists: -1 } });
-  assert.equal(out.proteinGrams, 0);
-  assert.equal(out.calories, 0);
-  assert.equal(out.handPortions.palms, 2);
-  assert.equal(out.handPortions.fists, 0);
-});
-
 test('normalizeHandPortions drops unknown keys and keeps known ones', () => {
   const out = normalizeHandPortions({ palms: 3, bogus: 9, thumbs: '2' });
   assert.deepEqual(out, { palms: 3, fists: 0, cupped: 0, thumbs: 2 });
 });
 
 test('validateFuelLog accepts a valid log', () => {
-  assert.equal(validateFuelLog(normalizeFuelLog(VALID_LOG)).ok, true);
+  assert.equal(validateFuelLog(normalizeFuelLog(NEW_LOG)).ok, true);
+  assert.equal(validateFuelLog(normalizeFuelLog(LEGACY_LOG)).ok, true);
 });
 
-test('validateFuelLog enforces bounds', () => {
-  const base = () => normalizeFuelLog(VALID_LOG);
+test('validateFuelLog enforces bounds and component shape', () => {
+  const base = () => normalizeFuelLog(NEW_LOG);
 
-  const bad1 = { ...base(), proteinGrams: 1001 };
-  assert.equal(validateFuelLog(bad1).ok, false);
+  assert.equal(validateFuelLog({ ...base(), proteinGrams: 1001 }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), carbsGrams: 1001 }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), fatGrams: -1 }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), calories: -1 }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), vegPortions: 201 }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), isWholeFood: 'yes' }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), date: '05/11/2026' }).ok, false);
 
-  const bad2 = { ...base(), calories: -1 };
-  assert.equal(validateFuelLog(bad2).ok, false);
+  const tooMany = {
+    ...base(),
+    components: { ...base().components, protein: { size: 'palm', count: 51 } },
+  };
+  assert.equal(validateFuelLog(tooMany).ok, false);
 
-  const bad3 = { ...base(), handPortions: { ...base().handPortions, palms: 51 } };
-  assert.equal(validateFuelLog(bad3).ok, false);
+  const fractional = {
+    ...base(),
+    components: { ...base().components, protein: { size: 'palm', count: 1.5 } },
+  };
+  assert.equal(validateFuelLog(fractional).ok, false);
 
-  const bad4 = { ...base(), handPortions: { ...base().handPortions, fists: 1.5 } };
-  assert.equal(validateFuelLog(bad4).ok, false);
+  const badSize = {
+    ...base(),
+    components: { ...base().components, protein: { size: 'handful', count: 1 } },
+  };
+  assert.equal(validateFuelLog(badSize).ok, false);
 
-  const bad5 = { ...base(), isWholeFood: 'yes' };
-  assert.equal(validateFuelLog(bad5).ok, false);
+  const missing = { ...base(), components: { protein: { size: 'palm', count: 1 } } };
+  assert.equal(validateFuelLog(missing).ok, false);
 
-  const bad6 = { ...base(), date: '05/11/2026' };
-  assert.equal(validateFuelLog(bad6).ok, false);
-
-  const good = { ...base(), proteinGrams: 0, calories: 0 };
+  const good = normalizeFuelLog({
+    ...base(),
+    components: {
+      protein: { size: 'palm', count: 0 },
+      veg: { size: 'fist', count: 0 },
+      carbs: { size: 'cupped', count: 0 },
+      fat: { size: 'thumb', count: 0 },
+    },
+  });
   assert.equal(validateFuelLog(good).ok, true);
 });
 
@@ -110,7 +199,7 @@ test('migrateBackup upgrades a v3 backup without fuel data (fuelLogs/waterLogs d
   assert.deepEqual(out.exercises[0].metrics, ['strength']);
 });
 
-test('migrateBackup keeps and normalizes fuel data in a v4 backup', () => {
+test('migrateBackup migrates v4 fuel handPortions into v5 components', () => {
   const v4 = {
     version: 4,
     exercises: [{ id: 1, name: 'Bench Press', metrics: ['strength'] }],
@@ -122,7 +211,30 @@ test('migrateBackup keeps and normalizes fuel data in a v4 backup', () => {
   assert.equal(out.version, BACKUP_VERSION);
   assert.equal(out.fuelLogs.length, 1);
   assert.equal(out.fuelLogs[0].proteinGrams, 25);
+  assert.deepEqual(out.fuelLogs[0].components, {
+    protein: { size: 'palm', count: 1 },
+    veg: { size: 'fist', count: 0 },
+    carbs: { size: 'cupped', count: 0 },
+    fat: { size: 'thumb', count: 0 },
+  });
+  assert.equal(out.fuelLogs[0].carbsGrams, 0);
+  assert.equal(out.fuelLogs[0].fatGrams, 0);
   assert.equal(out.waterLogs[0].glasses, 6);
+});
+
+test('migrateBackup keeps v5 component logs intact', () => {
+  const v5 = {
+    version: 5,
+    exercises: [],
+    sets: [],
+    fuelLogs: [NEW_LOG],
+    waterLogs: [],
+  };
+  const out = migrateBackup(v5);
+  assert.equal(out.version, BACKUP_VERSION);
+  assert.deepEqual(out.fuelLogs[0].components, NEW_LOG.components);
+  assert.equal(out.fuelLogs[0].proteinGrams, 25);
+  assert.equal(out.fuelLogs[0].fatGrams, 10);
 });
 
 test('migrateBackup drops malformed fuel entries instead of crashing', () => {

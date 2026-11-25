@@ -1,6 +1,10 @@
 // Pulse — schema for sets, exercises and fuel logs.
 import { localDateStr } from './dates.js';
 import { inferPattern, isPattern } from './patterns.js';
+import {
+  COMPONENT_KEYS, PORTION_SIZES,
+  normalizeMealComponents, calcMealComponents, handPortionsFromComponents,
+} from './fuel.js';
 
 // ── Set schema ─────────────────────────────────────────────
 //
@@ -76,6 +80,15 @@ export function normalizeHandPortions(p = {}) {
   return out;
 }
 
+function isComponentShape(value) {
+  return Boolean(value && typeof value === 'object' &&
+    COMPONENT_KEYS.some(key => key in value));
+}
+
+function nonNegNumberOr(value, def) {
+  return Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : def;
+}
+
 export function normalizeFuelLog(raw = {}) {
   const log = { ...raw };
 
@@ -90,12 +103,33 @@ export function normalizeFuelLog(raw = {}) {
     : localDateStr(tsValid ? ts : new Date());
   log.date = dateCandidate;
 
-  log.proteinGrams = Number.isFinite(Number(log.proteinGrams)) && Number(log.proteinGrams) >= 0
-    ? Number(log.proteinGrams) : 0;
-  log.calories = Number.isFinite(Number(log.calories)) && Number(log.calories) >= 0
-    ? Math.round(Number(log.calories)) : 0;
+  // Category × size is the canonical shape. Old logs carry handPortions
+  // instead; normalizeMealComponents maps those to the same defaults.
+  const hasComponents = isComponentShape(log.components);
+  const components = normalizeMealComponents(hasComponents ? log.components : log.handPortions);
+  const macros = calcMealComponents(components);
+  log.components = components;
+  log.handPortions = handPortionsFromComponents(components);
+
+  if (hasComponents) {
+    // A new-shape log's macros are derived from its portions, so they cannot
+    // drift from what the user selected.
+    log.proteinGrams = macros.proteinGrams;
+    log.carbsGrams = macros.carbsGrams;
+    log.fatGrams = macros.fatGrams;
+    log.calories = macros.calories;
+    log.vegPortions = macros.vegPortions;
+  } else {
+    // Legacy logs may carry macros from an older app version; preserve them
+    // when present, otherwise derive from the legacy hand portions.
+    log.proteinGrams = nonNegNumberOr(log.proteinGrams, macros.proteinGrams);
+    log.carbsGrams = nonNegNumberOr(log.carbsGrams, macros.carbsGrams);
+    log.fatGrams = nonNegNumberOr(log.fatGrams, macros.fatGrams);
+    log.calories = Math.round(nonNegNumberOr(log.calories, macros.calories));
+    log.vegPortions = nonNegNumberOr(log.vegPortions, macros.vegPortions);
+  }
+
   log.isWholeFood = boolOr(log.isWholeFood, true);
-  log.handPortions = normalizeHandPortions(log.handPortions);
   log.notes = typeof log.notes === 'string' ? log.notes : '';
 
   return log;
@@ -108,10 +142,34 @@ export function validateFuelLog(log = {}) {
   if (!Number.isFinite(log.proteinGrams) || log.proteinGrams < 0 || log.proteinGrams > 1000) {
     return { ok: false, error: 'Protein grams must be between 0 and 1000.' };
   }
+  if (!Number.isFinite(log.carbsGrams) || log.carbsGrams < 0 || log.carbsGrams > 1000) {
+    return { ok: false, error: 'Carb grams must be between 0 and 1000.' };
+  }
+  if (!Number.isFinite(log.fatGrams) || log.fatGrams < 0 || log.fatGrams > 1000) {
+    return { ok: false, error: 'Fat grams must be between 0 and 1000.' };
+  }
   if (!Number.isFinite(log.calories) || log.calories < 0 || log.calories > 10000) {
     return { ok: false, error: 'Calories must be between 0 and 10000.' };
   }
+  if (!Number.isFinite(log.vegPortions) || log.vegPortions < 0 || log.vegPortions > 200) {
+    return { ok: false, error: 'Vegetable portions must be between 0 and 200.' };
+  }
   if (typeof log.isWholeFood !== 'boolean') return { ok: false, error: 'isWholeFood must be a boolean.' };
+
+  const components = log.components || {};
+  for (const key of COMPONENT_KEYS) {
+    const entry = components[key];
+    if (!entry || typeof entry !== 'object') {
+      return { ok: false, error: `components.${key} is missing.` };
+    }
+    if (!PORTION_SIZES.includes(entry.size)) {
+      return { ok: false, error: `components.${key}.size must be one of ${PORTION_SIZES.join(', ')}.` };
+    }
+    if (!Number.isInteger(entry.count) || entry.count < 0 || entry.count > 50) {
+      return { ok: false, error: `components.${key}.count must be a whole number between 0 and 50.` };
+    }
+  }
+
   const portions = log.handPortions || {};
   for (const key of FUEL_LOG_KEYS) {
     const n = Number(portions[key]);
@@ -183,7 +241,9 @@ export function validateRecoveryLog(log = {}) {
 // Older exports (≤v2.1.0) import fine: fuel arrays default to [].
 // v4 also absorbs additive per-record fields without a bump (e.g. recovery
 // `weightLbs` in v2.13.0) because import normalizes each record, not the file.
-export const BACKUP_VERSION = 4;
+// v5 = fuel logs carry category × size `components` (plus carbs/fat/veg).
+// v4 fuel logs migrate through handPortions with the original category map.
+export const BACKUP_VERSION = 5;
 
 // Fill in defaults so every consumer can assume a uniform shape.
 // `groupId`/`round` mark membership of a circuit, and `restSec` carries the
@@ -255,6 +315,9 @@ export function migrateBackup(data) {
   // composite v4 set validates against every declared metric (see db.js).
   //   v4 also added fuel data: `fuelLogs` (hand-logged entries) and
   //   `waterLogs` (glasses/day). Files that predate Fuel ship neither.
+  // v4 → v5: fuel logs gained category × size `components`. v4 handPortions
+  // map one-to-one to the original category/size defaults, so old fuel
+  // entries keep their meaning and gain carbs/fat/veg estimates.
   const exercises = data.exercises.map(normalizeExercise);
   const fuelLogs = Array.isArray(data.fuelLogs) ? data.fuelLogs.map(normalizeFuelLog) : [];
   const waterLogs = Array.isArray(data.waterLogs) ? data.waterLogs.map(normalizeWaterLog) : [];

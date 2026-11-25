@@ -6,7 +6,7 @@ Pulse is a local-first health app for the three habits that change healthspan: *
 
 **Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
 
-Status: shipped and actively developed — **v2.24.1**, 279 tests, Lighthouse 95/100/100 (zoom is intentionally disabled for app-like gestures). MIT licensed.
+Status: shipped and actively developed — **v2.25.0**, 289 tests, Lighthouse 95/100/100 (zoom is intentionally disabled for app-like gestures). MIT licensed.
 
 ## Why people use it
 
@@ -96,9 +96,9 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 
 ### Phase 2: Pulse FUEL — Low-Friction Nutrition & Education (Complete — v2.2.0) ✅
 
-- [x] **Schema Extension & Data Layer** — `fuel_logs` + `water_logs` in a dedicated `pulse-fuel` database (`js/db.js`); `normalizeFuelLog`/`validateFuelLog`/`normalizeWaterLog` in `js/schema.js`; backups export both arrays (`BACKUP_VERSION` 4).
-- [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: `calcHandPortions()` (25g protein/palm, 15g carb/cupped, 10g fat/thumb), 16 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
-- [x] **UI & Tab Integration** — Fuel tab with hand-portion estimator modal, protein/quality/hydration meters, daily myth card, `pulse-fuel` persistence.
+- [x] **Schema Extension & Data Layer** — `fuel_logs` + `water_logs` in a dedicated `pulse-fuel` database (`js/db.js`); `normalizeFuelLog`/`validateFuelLog`/`normalizeWaterLog` in `js/schema.js`; backups export both arrays (`BACKUP_VERSION` 5).
+- [x] **Business Logic & Myth-Card Engine** — `js/fuel.js`: the category × size model (`calcMealComponents`, `normalizeMealComponents`) plus the legacy `calcHandPortions()` compatibility path, and 16 embedded science-backed myth-buster cards (`getDailyMythCard`, `getRandomMythCard`).
+- [x] **UI & Tab Integration** — Fuel tab with the four-row portion estimator, protein ring, whole-food share, hydration meters, daily myth card, `pulse-fuel` persistence.
 
 ### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 🚧
 
@@ -132,6 +132,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Sync sign-in that works in the installed app (v2.23.0)** — Cloud Sync now emails a short code instead of a magic link. On iOS an installed home-screen app has separate storage, so a link always opened Safari and signed in a different Pulse; the code is verified inside the app the user is holding, `autocomplete="one-time-code"` lets the phone fill it, and the settings card explains why. The email template is code-only (a link can be prefetched and consume the code), sign-out is local to the device, and auth changes repaint the card without a reload. Setup: `supabase/README.md`.
 - [x] **Fuel visual refresh (v2.24.0)** — a protein ring and rounded gradient meters, tappable eight-glass hydration with queued in-place updates, food-emoji meal templates with a hand-portion legend, and color-coded portion steppers in the Log Fuel modal. No new data fields or sync domains.
 - [x] **Service-worker cache fix (v2.24.1)** — precache assets with `cache: 'reload'` so a new worker cannot capture stale HTTP-cached files. This is what left the installed Safari web app on the previous Fuel build after the v2.24.0 deploy.
+- [x] **Fuel: category × size logging (v2.25.0)** — the Log Fuel modal now asks how much, separately from what. Protein, vegetables, carbs and fat are independent rows; each defaults to its common hand size but can be thumb, palm, cupped or fist. One row per category keeps logging to a few taps, and a mixed dish is estimated by total component, not by individual pieces. Added a “How portions work” guide, whole-food-share naming, and a v5 backup migration that keeps old `handPortions` data intact.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -273,13 +274,24 @@ An exercise can declare several metrics at once — e.g. a **Rowing** exercise w
   "id": "uuid",
   "timestamp": "2026-11-05T19:04:12.000Z",
   "date": "2026-11-05",
+  "components": {
+    "protein": { "size": "palm", "count": 2 },
+    "veg": { "size": "fist", "count": 1 },
+    "carbs": { "size": "cupped", "count": 1 },
+    "fat": { "size": "thumb", "count": 1 }
+  },
   "proteinGrams": 50,
+  "carbsGrams": 15,
+  "fatGrams": 10,
   "calories": 350,
+  "vegPortions": 1,
   "isWholeFood": true,
   "handPortions": { "palms": 2, "fists": 1, "cupped": 1, "thumbs": 1 },
   "notes": "chicken bowl"
 }
 ```
+
+`components` is canonical. `handPortions` is a derived compatibility field: it converts unusual sizes back to the old category-shaped counts (a fist of protein becomes ~2 palms) so older app versions, old backups and the weekly shopping guide keep their original meaning.
 
 Water is one row per day in `water_logs` (`{ date, glasses }`). Hydration is deliberately not a fuel entry.
 
@@ -315,9 +327,11 @@ The **Intervals** card on the Log tab launches four built-in protocols — Tabat
 
 ### Pulse Fuel
 
-The Fuel tab renders **hand portions**, not calories-first tracking: tap Palms / Fists / Cupped Hands / Thumbs; macros are estimated (`~25g protein per palm, ~15g carbs per cupped hand, ~10g fat per thumb`). Meters show protein vs. target, whole-food share of logged items, and hydration.
+The Fuel tab renders **hand portions**, not calories-first tracking. The log modal separates **what** from **how much**: four independent food rows (protein, vegetables, carbs, fat), each with a size choice of thumb, palm, cupped hand or fist. The common size is selected by default — palm for protein, fist for vegetables, cupped for carbs, thumb for fat — but it is a starting point, not an assumption. A fist of diced chicken and a palm of bread are both valid. One row per category keeps logging to a few taps; if a meal had two different sizes of the same category, estimate the combined amount.
 
-**Meal templates** are embedded shortcuts, not a food database: seven common whole-food meals prefill the normal hand-portion modal, so you can adjust the portions and save as usual. **Next week's hand portions** averages the last seven days of logs (by logged day, then scaled to seven) and shows a rough shopping guide — protein palms, vegetable fists, carb cupped hands and fat thumbs, with examples and the whole-food share. It is explicitly a guide, not a target. Both are static/derived content: no new store, no network and no per-food catalogue.
+Macros are rough estimates from the category × size table, always shown with `~`: a palm of protein is ~25g, a fist ~40g; a cupped hand of carbs is ~15g, a fist ~30g; a thumb of fat is ~10g, a palm ~20g. Vegetables carry no macro calories and count as veg portions. The **“How portions work”** sheet explains the hand sizes as volume anchors, with food examples and a mixed-dish note. Meters show protein vs. target, whole-food share of logged items, and hydration.
+
+**Meal templates** are embedded shortcuts, not a food database: seven common whole-food meals prefill the normal category × size modal, so you can adjust the portions and save as usual. **Next week's hand portions** averages the last seven days of logs (by logged day, then scaled to seven) and shows a rough shopping guide — protein palms, vegetable fists, carb cupped hands and fat thumbs, with examples and the whole-food share. It is explicitly a guide, not a target. Both are static/derived content: no new store, no network and no per-food catalogue.
 
 A **Myth Buster** card rotates daily; "Show me another" pulls a random one. Every card carries an *"Educational only — not medical advice"* line, and the `action` lines avoid medical targets. Card copy had a conservative evidence pass in v2.11.0 but is **still pending clinician sign-off** — the review surface, changed-row log and references live in `docs/myth-cards-review.md`.
 
@@ -353,7 +367,7 @@ JSON backup**.
 
 ### Backup compatibility
 
-`js/backup.js` writes `version: 4` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `recoveryLogs`, `equipment`. On import, older files migrate up to v4 (missing fuel/recovery arrays default to `[]`); files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes all local history on whichever origin you're on** — export first.
+`js/backup.js` writes `version: 5` (`BACKUP_VERSION`) with `exercises`, `sets`, `fuelLogs`, `waterLogs`, `recoveryLogs`, `equipment`. On import, older files migrate up to v5 (missing fuel/recovery arrays default to `[]`); v4 fuel logs keep their `handPortions` meaning and gain category × size components. Files from a newer version are rejected. Iron Log exports (`iron-log-backup-*.json`, v3) migrate cleanly into Pulse. **Clearing site data wipes all local history on whichever origin you're on** — export first.
 
 ## Cloud Sync (v2.5.0, opt-in, background)
 

@@ -20,7 +20,7 @@ export function focusableIn(container) {
 
 export function initA11y() {
   if (typeof document === 'undefined') return;
-  for (const id of ['log-modal', 'fuel-modal']) {
+  for (const id of ['log-modal', 'fuel-modal', 'portion-guide-modal']) {
     const overlay = document.getElementById(id);
     if (!overlay) continue;
     overlay.setAttribute('aria-hidden', 'true');

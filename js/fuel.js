@@ -1,10 +1,14 @@
 // ── Pulse Fuel — business logic ────────────────────────────
 //
-// Hand portions are the unit of account (no barcode database):
-//   palm   ~25g protein   (a palm of meat/fish/tofu/legumes)
-//   fist   ~1 cup vegetables (quality/fiber anchor, no macro calories)
-//   cupped ~15g carbs     (a cupped handful of rice/potato/fruit/bread)
-//   thumb  ~10g fat       (a thumb of nuts/oils/cheese/avocado)
+// The unit of account is a hand portion (no barcode database), but the hand
+// shape is a *size*, not a food category. A meal has four independent
+// components:
+//   protein, veg, carbs, fat
+// and each component chooses one of:
+//   thumb, palm, cupped, fist
+// The macro table below turns (category, size, count) into rough grams.
+// The legacy handPortions shape (palms/fists/cupped/thumbs) is still accepted
+// and derived for older readers and the weekly shopping guide.
 //
 // Everything here is an estimate — close enough to steer behavior, never
 // presented as clinical precision. Pure functions; unit-tested.
@@ -27,14 +31,139 @@ export const PORTION_EXAMPLES = Object.freeze({
   thumbs: 'oil, nuts, seeds, avocado',
 });
 
-// The visual vocabulary shared by the Fuel tab legend and the Log Fuel modal.
-// `hand` is the portion shape; `food` is one example, not a rule.
-export const PORTION_META = Object.freeze({
-  palms: { hand: '🖐️', food: '🥩', macro: 'Protein', tone: 'protein' },
-  fists: { hand: '✊',  food: '🥦', macro: 'Vegetables', tone: 'veg' },
-  cupped: { hand: '🫴', food: '🍚', macro: 'Carbs', tone: 'carbs' },
-  thumbs: { hand: '👍', food: '🥜', macro: 'Fat', tone: 'fat' },
+// ── Category × size model (v2.25.0) ───────────────────────
+// The category says what the food is; the hand size says how much. They are
+// deliberately independent: a fist of diced chicken and a palm of bread are
+// both valid estimates. The old handPortions shape is kept as a derived
+// compatibility field for older app versions, backups and the weekly guide.
+export const COMPONENT_KEYS = Object.freeze(['protein', 'veg', 'carbs', 'fat']);
+export const PORTION_SIZES = Object.freeze(['thumb', 'palm', 'cupped', 'fist']);
+
+export const COMPONENT_META = Object.freeze({
+  protein: { label: 'Protein', tone: 'protein', defaultSize: 'palm', examples: 'steak, fish, eggs, tofu, yoghurt, beans' },
+  veg: { label: 'Vegetables', tone: 'veg', defaultSize: 'fist', examples: 'salad, broccoli, peppers, greens' },
+  carbs: { label: 'Carbs', tone: 'carbs', defaultSize: 'cupped', examples: 'rice, oats, potatoes, bread, fruit' },
+  fat: { label: 'Fat', tone: 'fat', defaultSize: 'thumb', examples: 'oil, butter, cheese, nuts, avocado' },
 });
+
+export const SIZE_META = Object.freeze({
+  thumb: { label: 'Thumb', plural: 'thumbs', hand: '👍', volume: '~1 tbsp', examples: 'oil, butter, cheese' },
+  palm: { label: 'Palm', plural: 'palms', hand: '🖐️', volume: '~3 oz', examples: 'steak, fish, chicken' },
+  cupped: { label: 'Cupped', plural: 'cupped', hand: '🫴', volume: '~½ cup', examples: 'rice, yoghurt, nuts' },
+  fist: { label: 'Fist', plural: 'fists', hand: '✊', volume: '~1 cup', examples: 'vegetables, fruit, diced meat' },
+});
+
+export const DEFAULT_COMPONENT_SIZES = Object.freeze(
+  Object.fromEntries(COMPONENT_KEYS.map(key => [key, COMPONENT_META[key].defaultSize]))
+);
+
+// Grams of the component's macro per portion. Vegetables carry no macro
+// estimate in Pulse; they count as veg portions instead.
+export const COMPONENT_PORTION_MACROS = Object.freeze({
+  protein: Object.freeze({ thumb: 10, palm: 25, cupped: 30, fist: 40 }),
+  carbs: Object.freeze({ thumb: 5, palm: 10, cupped: 15, fist: 30 }),
+  fat: Object.freeze({ thumb: 10, palm: 20, cupped: 15, fist: 30 }),
+  veg: Object.freeze({ thumb: 0, palm: 0, cupped: 0, fist: 0 }),
+});
+
+const VEG_PORTION_WEIGHT = Object.freeze({ thumb: 0.25, palm: 0.5, cupped: 0.75, fist: 1 });
+const clampCount = n => Math.max(0, Math.floor(Number.isFinite(Number(n)) ? Number(n) : 0));
+
+export function componentsFromHandPortions(portions = {}) {
+  return {
+    protein: { size: 'palm', count: clampCount(portions?.palms) },
+    veg: { size: 'fist', count: clampCount(portions?.fists) },
+    carbs: { size: 'cupped', count: clampCount(portions?.cupped) },
+    fat: { size: 'thumb', count: clampCount(portions?.thumbs) },
+  };
+}
+
+// Accepts either the new { protein: { size, count }, … } shape or the legacy
+// { palms, fists, cupped, thumbs } shape. Missing or garbage entries fall back
+// to the category's common size and a zero count.
+export function normalizeMealComponents(value = {}) {
+  if (value && typeof value === 'object' &&
+      ['palms', 'fists', 'cupped', 'thumbs'].some(key => key in value)) {
+    return componentsFromHandPortions(value);
+  }
+
+  const out = {};
+  for (const key of COMPONENT_KEYS) {
+    const entry = value?.[key];
+    const size = entry && typeof entry === 'object' && PORTION_SIZES.includes(entry.size)
+      ? entry.size
+      : DEFAULT_COMPONENT_SIZES[key];
+    const count = clampCount(typeof entry === 'number' ? entry : entry?.count);
+    out[key] = { size, count };
+  }
+  return out;
+}
+
+export function calcMealComponents(components = {}) {
+  const normalized = normalizeMealComponents(components);
+  let proteinGrams = 0;
+  let carbsGrams = 0;
+  let fatGrams = 0;
+  let vegPortions = 0;
+
+  for (const key of COMPONENT_KEYS) {
+    const { size, count } = normalized[key];
+    if (key === 'veg') {
+      vegPortions += count * VEG_PORTION_WEIGHT[size];
+      continue;
+    }
+    const grams = count * COMPONENT_PORTION_MACROS[key][size];
+    if (key === 'protein') proteinGrams += grams;
+    if (key === 'carbs') carbsGrams += grams;
+    if (key === 'fat') fatGrams += grams;
+  }
+
+  const calories = Math.round(
+    proteinGrams * PORTION_MACROS.caloriesPerProtein +
+    carbsGrams * PORTION_MACROS.caloriesPerCarb +
+    fatGrams * PORTION_MACROS.caloriesPerFat
+  );
+
+  return {
+    components: normalized,
+    proteinGrams,
+    carbsGrams,
+    fatGrams,
+    calories,
+    vegPortions: Math.round(vegPortions * 100) / 100,
+  };
+}
+
+// Derive the old category-shaped hand counts for older readers and the
+// weekly shopping guide. A fist of protein becomes ~2 palms, not a fist, so
+// the legacy field keeps its original "palms = protein" meaning.
+export function handPortionsFromComponents(components = {}) {
+  const normalized = normalizeMealComponents(components);
+  const protein = (normalized.protein.count * COMPONENT_PORTION_MACROS.protein[normalized.protein.size]) / PORTION_MACROS.proteinPerPalm;
+  const veg = normalized.veg.count * VEG_PORTION_WEIGHT[normalized.veg.size];
+  const carbs = (normalized.carbs.count * COMPONENT_PORTION_MACROS.carbs[normalized.carbs.size]) / PORTION_MACROS.carbsPerCupped;
+  const fat = (normalized.fat.count * COMPONENT_PORTION_MACROS.fat[normalized.fat.size]) / PORTION_MACROS.fatPerThumb;
+
+  return {
+    palms: Math.round(protein),
+    fists: Math.round(veg),
+    cupped: Math.round(carbs),
+    thumbs: Math.round(fat),
+  };
+}
+
+export function describeComponents(components = {}) {
+  const normalized = normalizeMealComponents(components);
+  const parts = [];
+  for (const key of COMPONENT_KEYS) {
+    const { size, count } = normalized[key];
+    if (!count) continue;
+    const label = COMPONENT_META[key].label;
+    const sizeMeta = SIZE_META[size];
+    parts.push(`${label} ${count} ${count === 1 ? sizeMeta.label.toLowerCase() : sizeMeta.plural}`);
+  }
+  return parts.join(' · ') || 'No portions';
+}
 
 export const PORTION_LABELS = Object.freeze({
   palms: ['palm', 'palms'],
@@ -103,8 +232,6 @@ export const MEAL_TEMPLATES = Object.freeze([
     note: 'Oats, milk or yoghurt, peanut butter',
   },
 ]);
-
-const clampCount = n => Math.max(0, Math.floor(Number.isFinite(Number(n)) ? Number(n) : 0));
 
 export function describePortions(portions = {}) {
   const parts = [];

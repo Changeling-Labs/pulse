@@ -208,8 +208,7 @@ test('getRandomSleepCard returns a member of the set', () => {
 });
 
 // ── Backups ────────────────────────────────────────────────
-test('backups stay at v4 and default recoveryLogs for older files', () => {
-  assert.equal(BACKUP_VERSION, 4);
+test('backups carry recoveryLogs and default them for older files', () => {
   const base = { version: 4, exercises: [], sets: [] };
   assert.deepEqual(migrateBackup(base).recoveryLogs, []);
 
@@ -217,7 +216,7 @@ test('backups stay at v4 and default recoveryLogs for older files', () => {
     ...base,
     recoveryLogs: [{ date: '2026-11-06', sleepHours: 7, soreness: 3, restingHr: 55, note: '' }],
   });
-  assert.equal(withLogs.version, 4);
+  assert.equal(withLogs.version, BACKUP_VERSION);
   assert.equal(withLogs.recoveryLogs.length, 1);
   assert.equal(withLogs.recoveryLogs[0].sleepHours, 7);
   assert.equal(withLogs.recoveryLogs[0].soreness, 3);

@@ -6,7 +6,17 @@ import {
   PORTION_KEYS,
   PORTION_LABELS,
   PORTION_EXAMPLES,
-  PORTION_META,
+  COMPONENT_KEYS,
+  PORTION_SIZES,
+  COMPONENT_META,
+  SIZE_META,
+  DEFAULT_COMPONENT_SIZES,
+  COMPONENT_PORTION_MACROS,
+  componentsFromHandPortions,
+  normalizeMealComponents,
+  calcMealComponents,
+  handPortionsFromComponents,
+  describeComponents,
   MEAL_TEMPLATES,
   describePortions,
   weeklyHandPortions,
@@ -52,9 +62,112 @@ test('portion metadata covers every category', () => {
   for (const key of PORTION_KEYS) {
     assert.ok(PORTION_LABELS[key][0] && PORTION_LABELS[key][1]);
     assert.ok(PORTION_EXAMPLES[key]);
-    assert.ok(PORTION_META[key].hand && PORTION_META[key].food);
-    assert.ok(PORTION_META[key].macro && PORTION_META[key].tone);
   }
+});
+
+test('category × size metadata covers the whole matrix', () => {
+  assert.deepEqual(COMPONENT_KEYS, ['protein', 'veg', 'carbs', 'fat']);
+  assert.deepEqual(PORTION_SIZES, ['thumb', 'palm', 'cupped', 'fist']);
+  for (const key of COMPONENT_KEYS) {
+    const meta = COMPONENT_META[key];
+    assert.ok(meta.label && meta.tone && meta.examples);
+    assert.ok(PORTION_SIZES.includes(DEFAULT_COMPONENT_SIZES[key]));
+    assert.ok(PORTION_SIZES.includes(meta.defaultSize));
+    for (const size of PORTION_SIZES) {
+      assert.equal(typeof COMPONENT_PORTION_MACROS[key][size], 'number');
+    }
+  }
+  for (const size of PORTION_SIZES) {
+    assert.ok(SIZE_META[size].label && SIZE_META[size].hand);
+    assert.ok(SIZE_META[size].volume && SIZE_META[size].plural);
+  }
+});
+
+test('legacy hand portions map to the original category and size', () => {
+  assert.deepEqual(componentsFromHandPortions({ palms: 2, fists: 1, cupped: 3, thumbs: 1 }), {
+    protein: { size: 'palm', count: 2 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 3 },
+    fat: { size: 'thumb', count: 1 },
+  });
+});
+
+test('normalizeMealComponents fills defaults, clamps counts and rejects bad sizes', () => {
+  assert.deepEqual(normalizeMealComponents(), {
+    protein: { size: 'palm', count: 0 },
+    veg: { size: 'fist', count: 0 },
+    carbs: { size: 'cupped', count: 0 },
+    fat: { size: 'thumb', count: 0 },
+  });
+
+  assert.deepEqual(normalizeMealComponents({
+    protein: { size: 'fist', count: 2 },
+    carbs: { size: 'nope', count: '3.9' },
+    fat: { count: -2 },
+  }), {
+    protein: { size: 'fist', count: 2 },
+    veg: { size: 'fist', count: 0 },
+    carbs: { size: 'cupped', count: 3 },
+    fat: { size: 'thumb', count: 0 },
+  });
+});
+
+test('calcMealComponents handles mixed sizes without assuming a category shape', () => {
+  const out = calcMealComponents({
+    protein: { size: 'fist', count: 1 },   // 40g protein
+    veg: { size: 'thumb', count: 1 },      // 0.25 veg portion
+    carbs: { size: 'fist', count: 1 },     // 30g carbs
+    fat: { size: 'palm', count: 1 },       // 20g fat
+  });
+  assert.equal(out.proteinGrams, 40);
+  assert.equal(out.carbsGrams, 30);
+  assert.equal(out.fatGrams, 20);
+  assert.equal(out.vegPortions, 0.25);
+  assert.equal(out.calories, 40 * 4 + 30 * 4 + 20 * 9);   // 460
+  assert.deepEqual(out.components.protein, { size: 'fist', count: 1 });
+});
+
+test('calcMealComponents keeps the default mapping equivalent to the old calculator', () => {
+  const components = {
+    protein: { size: 'palm', count: 2 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 1 },
+    fat: { size: 'thumb', count: 1 },
+  };
+  const out = calcMealComponents(components);
+  const legacy = calcHandPortions({ palms: 2, fists: 1, cupped: 1, thumbs: 1 });
+  assert.equal(out.proteinGrams, legacy.proteinGrams);
+  assert.equal(out.carbsGrams, legacy.carbsGrams);
+  assert.equal(out.fatGrams, legacy.fatGrams);
+  assert.equal(out.calories, legacy.calories);
+  assert.equal(out.vegPortions, legacy.vegFists);
+});
+
+test('handPortionsFromComponents canonicalizes odd sizes for older readers', () => {
+  assert.deepEqual(handPortionsFromComponents({
+    protein: { size: 'fist', count: 1 },   // 40g → ~2 palms
+    veg: { size: 'thumb', count: 1 },      // 0.25 → rounds to 0 fists
+    carbs: { size: 'fist', count: 1 },     // 30g → 2 cupped
+    fat: { size: 'palm', count: 1 },       // 20g → 2 thumbs
+  }), { palms: 2, fists: 0, cupped: 2, thumbs: 2 });
+
+  assert.deepEqual(handPortionsFromComponents({
+    protein: { size: 'palm', count: 2 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 3 },
+    fat: { size: 'thumb', count: 1 },
+  }), { palms: 2, fists: 1, cupped: 3, thumbs: 1 });
+});
+
+test('describeComponents names the category, size and count', () => {
+  assert.equal(describeComponents({
+    protein: { size: 'palm', count: 2 },
+    veg: { size: 'fist', count: 1 },
+    carbs: { size: 'cupped', count: 2 },
+    fat: { size: 'thumb', count: 1 },
+  }), 'Protein 2 palms · Vegetables 1 fist · Carbs 2 cupped · Fat 1 thumb');
+
+  assert.equal(describeComponents({}), 'No portions');
 });
 
 test('meal templates are well-formed and usable', () => {

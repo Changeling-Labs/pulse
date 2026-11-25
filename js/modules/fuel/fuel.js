@@ -8,9 +8,11 @@ import {
   getFuelLogs, addFuelLog, deleteFuelLog, getWaterLog, setWaterGlasses, getPref,
 } from '../../db.js';
 import {
-  calcHandPortions, getDailyMythCard, getRandomMythCard,
-  MEAL_TEMPLATES, PORTION_KEYS, PORTION_LABELS, PORTION_EXAMPLES, PORTION_META,
-  describePortions, weeklyHandPortions,
+  getDailyMythCard, getRandomMythCard,
+  MEAL_TEMPLATES, PORTION_KEYS, PORTION_SIZES, PORTION_EXAMPLES,
+  SIZE_META, COMPONENT_KEYS,
+  normalizeMealComponents, calcMealComponents, componentsFromHandPortions,
+  describeComponents, describePortions, weeklyHandPortions,
 } from '../../fuel.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
@@ -21,7 +23,12 @@ import { track } from '../../analytics.js';
 // hydration, daily micronutrient-education cards. All local-first.
 const WATER_TARGET = 8;
 const PROTEIN_TARGET_OPTIONS = [80, 120, 140, 160, 180, 200];
-const FUEL_PORTIONS = ['palms', 'fists', 'cupped', 'thumbs'];
+const SHOPPING_META = {
+  palms: { label: 'Protein', unit: 'palm-equivalents' },
+  fists: { label: 'Vegetables', unit: 'fist-equivalents' },
+  cupped: { label: 'Carbs', unit: 'cupped-equivalents' },
+  thumbs: { label: 'Fat', unit: 'thumb-equivalents' },
+};
 let waterGlasses = 0;
 let waterWrite = Promise.resolve();
 
@@ -52,11 +59,11 @@ function proteinRingHtml(percent) {
 
 function portionLegendHtml() {
   return `
-    <div class="portion-legend" role="list" aria-label="Hand portion guide">
-      ${PORTION_KEYS.map(key => {
-        const meta = PORTION_META[key];
-        return `<span class="portion-legend-item ${meta.tone}" role="listitem">
-          <span class="portion-legend-emoji" aria-hidden="true">${meta.hand}</span>${meta.macro}
+    <div class="portion-legend" role="list" aria-label="Hand portion sizes">
+      ${PORTION_SIZES.map(size => {
+        const meta = SIZE_META[size];
+        return `<span class="portion-legend-item" role="listitem">
+          <span class="portion-legend-emoji" aria-hidden="true">${meta.hand}</span>${meta.label}
         </span>`;
       }).join('')}
     </div>`;
@@ -144,12 +151,14 @@ function shoppingCardHtml(allLogs, today) {
       </div>
       <p class="shopping-blurb">A rough guide from your last 7 days. Not a target.</p>
       <div class="shopping-grid">
-        ${PORTION_KEYS.map(key => `
-          <div class="shopping-item">
+        ${PORTION_KEYS.map(key => {
+          const meta = SHOPPING_META[key];
+          return `<div class="shopping-item">
             <div class="shopping-count">${week.projected[key]}</div>
-            <div class="shopping-label">${PORTION_LABELS[key][1]}</div>
-            <div class="shopping-example">${PORTION_EXAMPLES[key]}</div>
-          </div>`).join('')}
+            <div class="shopping-label">${meta.label}</div>
+            <div class="shopping-example">${meta.unit} · ${PORTION_EXAMPLES[key]}</div>
+          </div>`;
+        }).join('')}
       </div>
       <div class="shopping-foot">${week.logs} meal${week.logs === 1 ? '' : 's'} logged${week.wholeShare !== null ? ` · ${week.wholeShare}% whole food` : ''}.</div>
     </div>`;
@@ -177,12 +186,8 @@ async function renderFuel(el) {
   const myth = state.fuelMyth || getDailyMythCard(today);
 
   const portionText = l => {
-    const parts = [];
-    if (l.handPortions.palms) parts.push(`${l.handPortions.palms}× palm`);
-    if (l.handPortions.fists) parts.push(`${l.handPortions.fists}× fist`);
-    if (l.handPortions.cupped) parts.push(`${l.handPortions.cupped}× cupped`);
-    if (l.handPortions.thumbs) parts.push(`${l.handPortions.thumbs}× thumb`);
-    return parts.join(' · ') || 'note only';
+    const hasComponents = COMPONENT_KEYS.some(key => l.components?.[key]?.count > 0);
+    return hasComponents ? describeComponents(l.components) : 'note only';
   };
 
   el.innerHTML = `
@@ -205,7 +210,7 @@ async function renderFuel(el) {
 
       <div class="meter-block quality-block">
         <div class="meter-head">
-          <span><span class="meter-icon" aria-hidden="true">🌿</span>Food quality</span>
+          <span><span class="meter-icon" aria-hidden="true">🌿</span>Whole-food share</span>
           <span><b>${qualityPct === null ? '—' : qualityPct + '%'}</b>${logs.length ? ` whole · ${whole}/${logs.length} logged` : ' · nothing logged yet'}</span>
         </div>
         <div class="meter"><div class="meter-fill quality" style="width:${qualityPct ?? 0}%"></div></div>
@@ -241,7 +246,7 @@ async function renderFuel(el) {
     <div class="card">
       <div class="card-label">Today's fuel${logs.length ? ` · ${Math.round(calories)} kcal` : ''}</div>
       ${logs.length === 0
-        ? '<div class="empty"><div class="icon">🥗</div><p>Nothing logged yet. Tap + to log your first hand portion.</p></div>'
+        ? '<div class="empty"><div class="icon">🥗</div><p>Nothing logged yet. Tap “Log fuel” to estimate your first meal.</p></div>'
         : logs.map(l => `
             <div class="fuel-row" data-id="${l.id}">
               <div>
@@ -261,51 +266,100 @@ async function renderFuel(el) {
     ${shoppingCardHtml(allLogs, today)}`;
 }
 
-// ── Fuel modal: hand-portion estimator ──────────────────────
-let fuelPortions = { palms: 0, fists: 0, cupped: 0, thumbs: 0 };
+// ── Fuel modal: category × size estimator ──────────────────
+let fuelComponents = normalizeMealComponents();
 let fuelWholeFood = true;
+let guideTrapReady = false;
+
+function componentDetail(key, entry) {
+  const size = SIZE_META[entry.size];
+  const count = entry.count || 1;               // show the unit at zero
+  const est = calcMealComponents({ [key]: { size: entry.size, count } });
+  const prefix = entry.count
+    ? `${entry.count} ${entry.count === 1 ? size.label.toLowerCase() : size.plural} ≈ `
+    : `${size.label} ≈ `;
+
+  if (key === 'protein') return `${prefix}${est.proteinGrams} g protein`;
+  if (key === 'carbs') return `${prefix}${est.carbsGrams} g carbs`;
+  if (key === 'fat') return `${prefix}${est.fatGrams} g fat`;
+  const portions = est.vegPortions;
+  return `${prefix}${portions} veg portion${portions === 1 ? '' : 's'}`;
+}
 
 function renderFuelEstimate() {
-  const est = calcHandPortions(fuelPortions);
-  for (const key of FUEL_PORTIONS) {
-    const el = document.getElementById(`portion-${key}`);
-    if (el) el.textContent = fuelPortions[key];
+  const est = calcMealComponents(fuelComponents);
+
+  for (const key of COMPONENT_KEYS) {
+    const countEl = document.getElementById(`portion-${key}`);
+    if (countEl) countEl.textContent = fuelComponents[key].count;
+
+    const row = document.querySelector(`.component-row[data-component="${key}"]`);
+    if (row) {
+      row.querySelectorAll('.size-chip').forEach(btn => {
+        const selected = btn.dataset.size === fuelComponents[key].size;
+        btn.classList.toggle('active', selected);
+        btn.setAttribute('aria-pressed', String(selected));
+      });
+      const detail = document.getElementById(`portion-detail-${key}`);
+      if (detail) detail.textContent = componentDetail(key, fuelComponents[key]);
+    }
   }
+
+  const parts = [];
+  if (est.proteinGrams) parts.push(`<b>~${est.proteinGrams} g</b> protein`);
+  if (est.carbsGrams) parts.push(`~${est.carbsGrams} g carbs`);
+  if (est.fatGrams) parts.push(`~${est.fatGrams} g fat`);
+  if (est.vegPortions) parts.push(`~${est.vegPortions} veg portion${est.vegPortions === 1 ? '' : 's'}`);
+  if (parts.length) parts.push(`<b>~${est.calories}</b> kcal`);
+
   const estEl = document.getElementById('fuel-estimate');
-  if (estEl) estEl.innerHTML = `<b>${est.proteinGrams} g</b> protein · <b>${est.calories}</b> kcal`;
+  if (estEl) {
+    estEl.innerHTML = parts.length
+      ? `${parts.join(' · ')} <span class="estimate-word">estimate</span>`
+      : 'Tap + on the foods that were on the plate.';
+  }
+
   document.getElementById('whole-yes').classList.toggle('active', fuelWholeFood);
   document.getElementById('whole-no').classList.toggle('active', !fuelWholeFood);
   document.getElementById('fuel-whole-hint').textContent = fuelWholeFood ? 'Minimally processed' : 'Ultra-processed / packaged';
 }
 
-function openFuelModalWith(portions, wholeFood, note = '') {
-  fuelPortions = { palms: 0, fists: 0, cupped: 0, thumbs: 0, ...portions };
+function openFuelModalWith(components, wholeFood, note = '') {
+  fuelComponents = normalizeMealComponents(components);
   fuelWholeFood = Boolean(wholeFood);
   document.getElementById('fuel-notes').value = note;
   renderFuelEstimate();
   const modal = document.getElementById('fuel-modal');
   trapDialog(modal, () => window.closeFuelModal());
   openDialog(modal, {
-    initialFocus: () => document.querySelector('#fuel-modal .portion-stepper button'),
+    initialFocus: () => document.querySelector('#fuel-modal .component-stepper button:last-child'),
   });
 }
 
 window.openFuelModal = function() {
-  openFuelModalWith({ palms: 0, fists: 0, cupped: 0, thumbs: 0 }, true, '');
+  openFuelModalWith(null, true, '');
 };
 
 window.openFuelTemplate = function(id) {
   const template = MEAL_TEMPLATES.find(item => item.id === id);
   if (!template) return;
-  openFuelModalWith(template.portions, template.wholeFood, template.name);
+  openFuelModalWith(componentsFromHandPortions(template.portions), template.wholeFood, template.name);
 };
 
 window.closeFuelModal = function() {
   closeDialog(document.getElementById('fuel-modal'));
 };
 
-window.adjustPortion = function(kind, delta) {
-  fuelPortions[kind] = Math.max(0, Math.min(50, (fuelPortions[kind] || 0) + delta));
+window.adjustPortion = function(component, delta) {
+  const entry = fuelComponents[component];
+  if (!entry) return;
+  entry.count = Math.max(0, Math.min(50, entry.count + (Number(delta) || 0)));
+  renderFuelEstimate();
+};
+
+window.setPortionSize = function(component, size) {
+  if (!fuelComponents[component] || !PORTION_SIZES.includes(size)) return;
+  fuelComponents[component].size = size;
   renderFuelEstimate();
 };
 
@@ -314,20 +368,31 @@ window.setFuelWholeFood = function(yes) {
   renderFuelEstimate();
 };
 
-window.submitFuelLog = async function() {
-  const anyPortion = FUEL_PORTIONS.some(k => fuelPortions[k] > 0);
-  const notes = document.getElementById('fuel-notes').value.trim();
-  if (!anyPortion && !notes) { alert('Tap a portion or add a note.'); return; }
+window.openPortionGuide = function() {
+  const modal = document.getElementById('portion-guide-modal');
+  if (!modal) return;
+  if (!guideTrapReady) {
+    trapDialog(modal, () => window.closePortionGuide());
+    guideTrapReady = true;
+  }
+  openDialog(modal);
+};
 
-  const est = calcHandPortions(fuelPortions);
+window.closePortionGuide = function() {
+  closeDialog(document.getElementById('portion-guide-modal'));
+};
+
+window.submitFuelLog = async function() {
+  const anyPortion = COMPONENT_KEYS.some(key => fuelComponents[key].count > 0);
+  const notes = document.getElementById('fuel-notes').value.trim();
+  if (!anyPortion && !notes) { alert('Tap + on a food or add a note.'); return; }
+
   try {
     await addFuelLog({
       timestamp: new Date().toISOString(),
       date: todayStr(),
-      proteinGrams: est.proteinGrams,
-      calories: est.calories,
+      components: Object.fromEntries(COMPONENT_KEYS.map(key => [key, { ...fuelComponents[key] }])),
       isWholeFood: fuelWholeFood,
-      handPortions: { ...fuelPortions },
       notes,
     });
     track('meal-logged');

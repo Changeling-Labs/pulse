@@ -139,52 +139,101 @@
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="fuel-modal-title">Log fuel</div>
+    <p class="fuel-modal-hint">Rough estimate. Pick a size for what was on the plate — zero is fine.</p>
 
     <div class="metric-block">
-      <div class="metric-head"><span class="metric-label">Hand portions</span></div>
-      <div class="portion-grid">
-        <div class="portion-tile protein">
-          <span class="portion-emoji" aria-hidden="true"><span class="portion-hand">🖐️</span><span class="portion-food">🥩</span></span>
-          <span class="portion-name">Palm</span>
-          <span class="portion-sub">~25g protein</span>
-          <div class="portion-stepper">
-            <button type="button" onclick="adjustPortion('palms', -1)" aria-label="Fewer palms">−</button>
-            <span class="portion-count" id="portion-palms">0</span>
-            <button type="button" onclick="adjustPortion('palms', 1)" aria-label="More palms">+</button>
+      <div class="metric-head">
+        <span class="metric-label">Hand portions</span>
+        <button type="button" class="btn btn-ghost portion-guide-link" onclick="openPortionGuide()">How portions work</button>
+      </div>
+
+      <div class="component-list">
+        <div class="component-row protein" data-component="protein">
+          <div class="component-head">
+            <div class="component-copy">
+              <div class="component-name">Protein</div>
+              <div class="component-examples">steak · fish · yoghurt · beans</div>
+            </div>
+            <div class="component-stepper">
+              <button type="button" onclick="adjustPortion('protein', -1)" aria-label="Fewer protein portions">−</button>
+              <span class="component-count" id="portion-protein" aria-live="polite" aria-atomic="true">0</span>
+              <button type="button" onclick="adjustPortion('protein', 1)" aria-label="More protein portions">+</button>
+            </div>
           </div>
+          <div class="size-selector" role="group" aria-label="Protein portion size">
+            <button type="button" class="size-chip" data-size="thumb" aria-pressed="false" onclick="setPortionSize('protein', 'thumb')"><span class="size-hand" aria-hidden="true">👍</span><span>Thumb</span></button>
+            <button type="button" class="size-chip active" data-size="palm" aria-pressed="true" onclick="setPortionSize('protein', 'palm')"><span class="size-hand" aria-hidden="true">🖐️</span><span>Palm</span></button>
+            <button type="button" class="size-chip" data-size="cupped" aria-pressed="false" onclick="setPortionSize('protein', 'cupped')"><span class="size-hand" aria-hidden="true">🫴</span><span>Cupped</span></button>
+            <button type="button" class="size-chip" data-size="fist" aria-pressed="false" onclick="setPortionSize('protein', 'fist')"><span class="size-hand" aria-hidden="true">✊</span><span>Fist</span></button>
+          </div>
+          <div class="component-detail" id="portion-detail-protein">Palm ≈ 25 g protein</div>
         </div>
-        <div class="portion-tile veg">
-          <span class="portion-emoji" aria-hidden="true"><span class="portion-hand">✊</span><span class="portion-food">🥦</span></span>
-          <span class="portion-name">Fist</span>
-          <span class="portion-sub">vegetables · quality</span>
-          <div class="portion-stepper">
-            <button type="button" onclick="adjustPortion('fists', -1)" aria-label="Fewer fists">−</button>
-            <span class="portion-count" id="portion-fists">0</span>
-            <button type="button" onclick="adjustPortion('fists', 1)" aria-label="More fists">+</button>
+
+        <div class="component-row veg" data-component="veg">
+          <div class="component-head">
+            <div class="component-copy">
+              <div class="component-name">Vegetables</div>
+              <div class="component-examples">salad · broccoli · greens</div>
+            </div>
+            <div class="component-stepper">
+              <button type="button" onclick="adjustPortion('veg', -1)" aria-label="Fewer vegetable portions">−</button>
+              <span class="component-count" id="portion-veg" aria-live="polite" aria-atomic="true">0</span>
+              <button type="button" onclick="adjustPortion('veg', 1)" aria-label="More vegetable portions">+</button>
+            </div>
           </div>
+          <div class="size-selector" role="group" aria-label="Vegetable portion size">
+            <button type="button" class="size-chip" data-size="thumb" aria-pressed="false" onclick="setPortionSize('veg', 'thumb')"><span class="size-hand" aria-hidden="true">👍</span><span>Thumb</span></button>
+            <button type="button" class="size-chip" data-size="palm" aria-pressed="false" onclick="setPortionSize('veg', 'palm')"><span class="size-hand" aria-hidden="true">🖐️</span><span>Palm</span></button>
+            <button type="button" class="size-chip" data-size="cupped" aria-pressed="false" onclick="setPortionSize('veg', 'cupped')"><span class="size-hand" aria-hidden="true">🫴</span><span>Cupped</span></button>
+            <button type="button" class="size-chip active" data-size="fist" aria-pressed="true" onclick="setPortionSize('veg', 'fist')"><span class="size-hand" aria-hidden="true">✊</span><span>Fist</span></button>
+          </div>
+          <div class="component-detail" id="portion-detail-veg">Fist ≈ 1 veg portion</div>
         </div>
-        <div class="portion-tile carbs">
-          <span class="portion-emoji" aria-hidden="true"><span class="portion-hand">🫴</span><span class="portion-food">🍚</span></span>
-          <span class="portion-name">Cupped</span>
-          <span class="portion-sub">~15g carbs</span>
-          <div class="portion-stepper">
-            <button type="button" onclick="adjustPortion('cupped', -1)" aria-label="Fewer cupped hands">−</button>
-            <span class="portion-count" id="portion-cupped">0</span>
-            <button type="button" onclick="adjustPortion('cupped', 1)" aria-label="More cupped hands">+</button>
+
+        <div class="component-row carbs" data-component="carbs">
+          <div class="component-head">
+            <div class="component-copy">
+              <div class="component-name">Carbs</div>
+              <div class="component-examples">rice · oats · bread · fruit</div>
+            </div>
+            <div class="component-stepper">
+              <button type="button" onclick="adjustPortion('carbs', -1)" aria-label="Fewer carb portions">−</button>
+              <span class="component-count" id="portion-carbs" aria-live="polite" aria-atomic="true">0</span>
+              <button type="button" onclick="adjustPortion('carbs', 1)" aria-label="More carb portions">+</button>
+            </div>
           </div>
+          <div class="size-selector" role="group" aria-label="Carb portion size">
+            <button type="button" class="size-chip" data-size="thumb" aria-pressed="false" onclick="setPortionSize('carbs', 'thumb')"><span class="size-hand" aria-hidden="true">👍</span><span>Thumb</span></button>
+            <button type="button" class="size-chip" data-size="palm" aria-pressed="false" onclick="setPortionSize('carbs', 'palm')"><span class="size-hand" aria-hidden="true">🖐️</span><span>Palm</span></button>
+            <button type="button" class="size-chip active" data-size="cupped" aria-pressed="true" onclick="setPortionSize('carbs', 'cupped')"><span class="size-hand" aria-hidden="true">🫴</span><span>Cupped</span></button>
+            <button type="button" class="size-chip" data-size="fist" aria-pressed="false" onclick="setPortionSize('carbs', 'fist')"><span class="size-hand" aria-hidden="true">✊</span><span>Fist</span></button>
+          </div>
+          <div class="component-detail" id="portion-detail-carbs">Cupped ≈ 15 g carbs</div>
         </div>
-        <div class="portion-tile fat">
-          <span class="portion-emoji" aria-hidden="true"><span class="portion-hand">👍</span><span class="portion-food">🥜</span></span>
-          <span class="portion-name">Thumb</span>
-          <span class="portion-sub">~10g fat</span>
-          <div class="portion-stepper">
-            <button type="button" onclick="adjustPortion('thumbs', -1)" aria-label="Fewer thumbs">−</button>
-            <span class="portion-count" id="portion-thumbs">0</span>
-            <button type="button" onclick="adjustPortion('thumbs', 1)" aria-label="More thumbs">+</button>
+
+        <div class="component-row fat" data-component="fat">
+          <div class="component-head">
+            <div class="component-copy">
+              <div class="component-name">Fat</div>
+              <div class="component-examples">oil · butter · nuts · avocado</div>
+            </div>
+            <div class="component-stepper">
+              <button type="button" onclick="adjustPortion('fat', -1)" aria-label="Fewer fat portions">−</button>
+              <span class="component-count" id="portion-fat" aria-live="polite" aria-atomic="true">0</span>
+              <button type="button" onclick="adjustPortion('fat', 1)" aria-label="More fat portions">+</button>
+            </div>
           </div>
+          <div class="size-selector" role="group" aria-label="Fat portion size">
+            <button type="button" class="size-chip active" data-size="thumb" aria-pressed="true" onclick="setPortionSize('fat', 'thumb')"><span class="size-hand" aria-hidden="true">👍</span><span>Thumb</span></button>
+            <button type="button" class="size-chip" data-size="palm" aria-pressed="false" onclick="setPortionSize('fat', 'palm')"><span class="size-hand" aria-hidden="true">🖐️</span><span>Palm</span></button>
+            <button type="button" class="size-chip" data-size="cupped" aria-pressed="false" onclick="setPortionSize('fat', 'cupped')"><span class="size-hand" aria-hidden="true">🫴</span><span>Cupped</span></button>
+            <button type="button" class="size-chip" data-size="fist" aria-pressed="false" onclick="setPortionSize('fat', 'fist')"><span class="size-hand" aria-hidden="true">✊</span><span>Fist</span></button>
+          </div>
+          <div class="component-detail" id="portion-detail-fat">Thumb ≈ 10 g fat</div>
         </div>
       </div>
-      <div class="fuel-estimate" id="fuel-estimate"><b>0 g</b> protein · <b>0</b> kcal</div>
+
+      <div class="fuel-estimate" id="fuel-estimate" aria-live="polite" aria-atomic="true">Tap + on the foods that were on the plate.</div>
     </div>
 
     <div class="metric-block">
@@ -207,9 +256,60 @@
   </div>
 </div>
 
+<!-- Portion guide: the hand sizes are volume anchors, not food categories -->
+<div class="modal-overlay" id="portion-guide-modal" role="dialog" aria-modal="true" aria-labelledby="portion-guide-title" aria-hidden="true">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="portion-guide-title">How portions work</div>
+    <p class="portion-guide-intro">Hands are portion sizes, not food rules. Use the size that matches the amount.</p>
+
+    <div class="portion-guide-list">
+      <div class="portion-guide-row">
+        <span class="portion-guide-hand" aria-hidden="true">👍</span>
+        <div>
+          <div class="portion-guide-name">Thumb <span>~1 tbsp</span></div>
+          <div class="portion-guide-examples">oil, butter, cheese, nut butter</div>
+        </div>
+      </div>
+      <div class="portion-guide-row">
+        <span class="portion-guide-hand" aria-hidden="true">🖐️</span>
+        <div>
+          <div class="portion-guide-name">Palm <span>~3 oz</span></div>
+          <div class="portion-guide-examples">steak, fish, chicken</div>
+        </div>
+      </div>
+      <div class="portion-guide-row">
+        <span class="portion-guide-hand" aria-hidden="true">🫴</span>
+        <div>
+          <div class="portion-guide-name">Cupped <span>~½ cup</span></div>
+          <div class="portion-guide-examples">rice, yoghurt, nuts</div>
+        </div>
+      </div>
+      <div class="portion-guide-row">
+        <span class="portion-guide-hand" aria-hidden="true">✊</span>
+        <div>
+          <div class="portion-guide-name">Fist <span>~1 cup</span></div>
+          <div class="portion-guide-examples">vegetables, fruit, diced meat</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="portion-guide-notes">
+      <p><b>A food can use different sizes.</b> A steak is a palm, yoghurt is cupped, cheese is a thumb, and diced chicken in a bowl might be a fist. If a meal had two different amounts of the same category, pick the closest combined size.</p>
+      <p><b>Mixed dish?</b> Estimate the total of each component, not each piece.</p>
+      <p><b>Close enough is fine.</b> Leave a category at zero if it wasn’t there.</p>
+    </div>
+
+    <button type="button" class="btn btn-primary btn-full" onclick="closePortionGuide()">Got it</button>
+  </div>
+</div>
+
 <script>
   document.getElementById('fuel-modal').addEventListener('click', function(e) {
     if (e.target === this) closeFuelModal();
+  });
+  document.getElementById('portion-guide-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePortionGuide();
   });
 </script>
 

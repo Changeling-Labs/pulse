@@ -1046,55 +1046,120 @@ body.rest-active #content { padding-bottom: 104px; }
 
 .water-glass.filled .water-glass-fill { height: calc(100% - 5px); }
 
-.portion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fuel-modal-hint {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
 
-.portion-tile {
-  --portion-color: var(--glow);
-  --portion-dim: rgba(0, 245, 255, 0.1);
-  --portion-line: rgba(0, 245, 255, 0.3);
+.portion-guide-link {
+  padding: 4px 0;
+  font-size: 11px;
+  color: var(--glow);
+}
+
+.component-list { display: flex; flex-direction: column; gap: 8px; }
+
+.component-row {
+  --component-color: var(--glow);
+  --component-dim: rgba(0, 245, 255, 0.1);
+  --component-line: rgba(0, 245, 255, 0.3);
+  padding: 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 12px 8px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
 }
 
-.portion-tile.protein { --portion-color: #FF8A7A; --portion-dim: rgba(255, 138, 122, 0.12); --portion-line: rgba(255, 138, 122, 0.34); }
-.portion-tile.veg { --portion-color: var(--green); --portion-dim: var(--green-dim); --portion-line: rgba(52, 211, 153, 0.34); }
-.portion-tile.carbs { --portion-color: #F5C26B; --portion-dim: rgba(245, 194, 107, 0.12); --portion-line: rgba(245, 194, 107, 0.34); }
-.portion-tile.fat { --portion-color: #E9B072; --portion-dim: rgba(233, 176, 114, 0.12); --portion-line: rgba(233, 176, 114, 0.34); }
+.component-row.protein { --component-color: #FF8A7A; --component-dim: rgba(255, 138, 122, 0.12); --component-line: rgba(255, 138, 122, 0.34); }
+.component-row.veg { --component-color: var(--green); --component-dim: var(--green-dim); --component-line: rgba(52, 211, 153, 0.34); }
+.component-row.carbs { --component-color: #F5C26B; --component-dim: rgba(245, 194, 107, 0.12); --component-line: rgba(245, 194, 107, 0.34); }
+.component-row.fat { --component-color: #E9B072; --component-dim: rgba(233, 176, 114, 0.12); --component-line: rgba(233, 176, 114, 0.34); }
 
-.portion-emoji { display: flex; align-items: center; gap: 2px; line-height: 1.2; }
-.portion-hand { font-size: 24px; }
-.portion-food { font-size: 32px; }
-.portion-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.portion-sub { font-size: 9px; color: var(--text-3); text-align: center; }
-.portion-stepper { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
+.component-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.component-copy { min-width: 0; }
+.component-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.component-examples { margin-top: 1px; font-size: 9px; line-height: 1.35; color: var(--text-3); }
+.component-stepper { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 
-.portion-stepper button {
-  width: 38px;
-  height: 38px;
+.component-stepper button {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 1px solid var(--portion-line);
-  background: var(--portion-dim);
-  color: var(--portion-color);
-  font-size: 20px;
+  border: 1px solid var(--component-line);
+  background: var(--component-dim);
+  color: var(--component-color);
+  font-size: 18px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
 
-.portion-stepper button:active { transform: scale(0.94); border-color: var(--portion-color); background: var(--portion-color); color: var(--bg); }
-.portion-count { font-family: var(--font-display); font-size: 24px; font-weight: 700; min-width: 24px; text-align: center; color: var(--portion-color); }
+.component-stepper button:active { transform: scale(0.94); border-color: var(--component-color); background: var(--component-color); color: var(--bg); }
+.component-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; min-width: 22px; text-align: center; color: var(--component-color); }
+
+.size-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+
+.size-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.size-chip .size-hand { font-size: 14px; line-height: 1; }
+.size-chip.active { border-color: var(--component-line); background: var(--component-dim); color: var(--component-color); }
+
+.component-detail { margin-top: 6px; font-size: 10px; color: var(--text-3); }
 
 #fuel-modal .mode-btn.active { box-shadow: 0 0 18px rgba(0, 245, 255, 0.24); }
 #fuel-modal .btn-primary { box-shadow: 0 6px 20px rgba(0, 86, 210, 0.35); }
 
-.fuel-estimate { text-align: center; font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text-2); margin-top: 14px; }
+.fuel-estimate {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-2);
+  margin-top: 14px;
+}
+
 .fuel-estimate b { color: var(--glow); }
+.estimate-word { margin-left: 4px; font-family: var(--font-body); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+
+/* ── Portion guide ───────────────────────────────────── */
+.portion-guide-intro { margin: -4px 0 14px; font-size: 12px; line-height: 1.55; color: var(--text-2); }
+.portion-guide-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+.portion-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.portion-guide-hand { flex: 0 0 30px; width: 30px; text-align: center; font-size: 22px; }
+.portion-guide-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.portion-guide-name span { margin-left: 4px; font-weight: 400; color: var(--text-3); }
+.portion-guide-examples { margin-top: 2px; font-size: 10px; line-height: 1.35; color: var(--text-3); }
+.portion-guide-notes { margin-bottom: 16px; font-size: 11px; line-height: 1.5; color: var(--text-2); }
+.portion-guide-notes p { margin-bottom: 8px; }
+.portion-guide-notes p:last-child { margin-bottom: 0; }
 
 .myth-card { background: linear-gradient(165deg, rgba(0,245,255,0.10), var(--surface) 55%); border: 1px solid rgba(0,245,255,0.28); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
 .myth-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--glow); border: 1px solid rgba(0,245,255,0.5); border-radius: 4px; padding: 3px 8px; margin-bottom: 10px; text-transform: uppercase; }
@@ -1189,10 +1254,6 @@ body.rest-active #content { padding-bottom: 104px; }
 }
 
 .portion-legend-emoji { font-size: 13px; line-height: 1; }
-.portion-legend-item.protein { color: #FF9C8E; border-color: rgba(255, 138, 122, 0.28); background: rgba(255, 138, 122, 0.08); }
-.portion-legend-item.veg { color: var(--green); border-color: rgba(52, 211, 153, 0.28); background: var(--green-dim); }
-.portion-legend-item.carbs { color: #F5C26B; border-color: rgba(245, 194, 107, 0.28); background: rgba(245, 194, 107, 0.08); }
-.portion-legend-item.fat { color: #E9B072; border-color: rgba(233, 176, 114, 0.28); background: rgba(233, 176, 114, 0.08); }
 
 .shopping-card { border-color: rgba(52, 211, 153, 0.28); }
 
