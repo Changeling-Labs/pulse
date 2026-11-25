@@ -6,7 +6,7 @@ Pulse is a local-first health app for the three habits that change healthspan: *
 
 **Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
 
-Status: shipped and actively developed — **v2.24.0**, 279 tests, Lighthouse 95/100/100 (zoom is intentionally disabled for app-like gestures). MIT licensed.
+Status: shipped and actively developed — **v2.24.1**, 279 tests, Lighthouse 95/100/100 (zoom is intentionally disabled for app-like gestures). MIT licensed.
 
 ## Why people use it
 
@@ -131,6 +131,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **App-like gestures (v2.22.0)** — pinch and double-tap zoom are off (`maximum-scale=1`, `user-scalable=no`, `touch-action`), iOS gesture events and multi-finger touchmove are blocked, pull-to-refresh/rubber-band overscroll is suppressed, and long-press callouts stay off controls. Text remains selectable where it matters.
 - [x] **Sync sign-in that works in the installed app (v2.23.0)** — Cloud Sync now emails a short code instead of a magic link. On iOS an installed home-screen app has separate storage, so a link always opened Safari and signed in a different Pulse; the code is verified inside the app the user is holding, `autocomplete="one-time-code"` lets the phone fill it, and the settings card explains why. The email template is code-only (a link can be prefetched and consume the code), sign-out is local to the device, and auth changes repaint the card without a reload. Setup: `supabase/README.md`.
 - [x] **Fuel visual refresh (v2.24.0)** — a protein ring and rounded gradient meters, tappable eight-glass hydration with queued in-place updates, food-emoji meal templates with a hand-portion legend, and color-coded portion steppers in the Log Fuel modal. No new data fields or sync domains.
+- [x] **Service-worker cache fix (v2.24.1)** — precache assets with `cache: 'reload'` so a new worker cannot capture stale HTTP-cached files. This is what left the installed Safari web app on the previous Fuel build after the v2.24.0 deploy.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 

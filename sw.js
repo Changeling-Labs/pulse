@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v35';
+const CACHE = 'pulse-v36';
 const ASSETS = [
   './',
   './index.html',
@@ -53,8 +53,17 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // cache: 'reload' bypasses the HTTP cache. Without it, a brand-new worker
+    // can precache stale copies of the app and strand installed PWAs on the
+    // previous build — the new cache name alone is not enough.
+    const requests = ASSETS.map(url =>
+      new Request(new URL(url, self.registration.scope), { cache: 'reload' })
+    );
+    await cache.addAll(requests);
+    self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
