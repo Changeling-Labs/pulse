@@ -10,7 +10,10 @@
 -- Apply: paste this whole file into Supabase Dashboard → SQL Editor → Run.
 -- Then whitelist the app URLs under Authentication → URL Configuration:
 --   Site URL: https://changelinglabs.com/pulse/
---   Redirect URLs: https://changelinglabs.com/pulse/, http://localhost:8930/
+--   Redirect URLs: https://changelinglabs.com/pulse/,
+--                  https://www.changelinglabs.com/pulse/, http://localhost:8930/
+-- Finally, replace the Magic Link and Confirm signup email templates with
+-- supabase/email-templates/sign-in-code.html (code-only, no link). See README.
 
 create extension if not exists pgcrypto;
 

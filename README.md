@@ -6,7 +6,7 @@ Pulse is a local-first health app for the three habits that change healthspan: *
 
 **Try it:** https://changelinglabs.com/pulse/ · **Install:** open it in your browser and add it to your home screen. After the first load it works completely offline.
 
-Status: shipped and actively developed — **v2.21.3**, 276 tests, Lighthouse 100/100/100. MIT licensed.
+Status: shipped and actively developed — **v2.23.0**, 279 tests, Lighthouse 100/100/100. MIT licensed.
 
 ## Why people use it
 
@@ -103,7 +103,7 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 ### Phase 3: Refactor & Cloud Sync Engine (Q1 2027) 🚧
 
 - [x] **Step 3.1: Kernel Extraction (v2.3.0)** — `app.js` is now a 13-line entry; kernel owns state/routing/boot (`js/kernel/shell.js`), shared helpers (`js/kernel/helpers.js`); Move lives in `js/modules/move/`, Fuel in `js/modules/fuel/`, Settings in `js/modules/settings.js`. No build step, zero behavior change.
-- [x] **Step 3.2: Local-First Supabase Sync Engine (v2.4.0 → v2.5.0)** — Optional magic-link auth; `sync_rows` table with row-level security; local-first `pulse-sync.dirty` queue; last-write-wins with a payload tiebreak; background auto-sync on save/visibility/reconnect. See **Cloud Sync** below.
+- [x] **Step 3.2: Local-First Supabase Sync Engine (v2.4.0 → v2.5.0)** — Optional email-code auth; `sync_rows` table with row-level security; local-first `pulse-sync.dirty` queue; last-write-wins with a payload tiebreak; background auto-sync on save/visibility/reconnect. See **Cloud Sync** below.
 
 ### Phase 4: Pulse RECOVER — Mobility & Rest Protocols (Q2 2027) 📅
 
@@ -128,6 +128,8 @@ Note for AI Coding Agents and Developers: follow the execution steps sequentiall
 - [x] **Distribution polish (v2.21.1)** — a Pulse-only, dismissible install hint (Chrome native prompt or iOS Share → Add to Home Screen) with a 30-day dismissal; hub crawl files (`robots.txt`, `sitemap.xml`); GitHub homepage, description and topics set.
 - [x] **Cookieless analytics (v2.21.2)** — GoatCounter on the hub and Pulse, loaded only on `changelinglabs.com` and `www.changelinglabs.com`. Aggregate pageviews and referrers, no cookies, no persistent IDs, no cross-site profiles, no access to logged data. Localhost and preview hosts are excluded; privacy policy updated.
 - [x] **Anonymous action counts (v2.21.3)** — a small fixed event layer: session starts/completions by kind, programme sessions done, set/circuit/meal/check-in saves, and install clicks/dismissals. Fixed names only, no free text, no IDs; queued until GoatCounter is ready; production-host only. Privacy policy updated.
+- [x] **App-like gestures (v2.22.0)** — pinch and double-tap zoom are off (`maximum-scale=1`, `user-scalable=no`, `touch-action`), iOS gesture events and multi-finger touchmove are blocked, pull-to-refresh/rubber-band overscroll is suppressed, and long-press callouts stay off controls. Text remains selectable where it matters.
+- [x] **Sync sign-in that works in the installed app (v2.23.0)** — Cloud Sync now emails a short code instead of a magic link. On iOS an installed home-screen app has separate storage, so a link always opened Safari and signed in a different Pulse; the code is verified inside the app the user is holding, `autocomplete="one-time-code"` lets the phone fill it, and the settings card explains why. The email template is code-only (a link can be prefetched and consume the code), sign-out is local to the device, and auth changes repaint the card without a reload. Setup: `supabase/README.md`.
 - [ ] Integrations & Export: Notion, Apple Health, and Strava (needs OAuth; deferred with 5.3).
 - [ ] Native Mobile Packages: optional Capacitor/Ionic wrappers.
 
@@ -353,15 +355,19 @@ JSON backup**.
 
 ## Cloud Sync (v2.5.0, opt-in, background)
 
-Pulse is local-first: without a signed-in user, zero network traffic occurs and no data leaves the device. Cloud sync exists so the same history can roam between devices you own.
+Pulse is local-first: without a signed-in user, no sync traffic occurs and no health data leaves the device. Cloud sync exists so the same history can roam between devices you own.
 
-- **Off by default.** Signing in sends nothing by itself; sync runs on the user's terms after that (auto on every save, tab-visible reopen, and network reconnect — plus manual **Sync now**). Nothing is ever pushed before a sign-in.
+- **Off by default.** Signing in is the opt-in; nothing is ever pushed before it. After that, sync runs on the user's terms (auto on every save, tab-visible reopen, and network reconnect — plus manual **Sync now**).
 - **Design:** one table (`sync_rows` in Pulse's Supabase project) carries every data domain; each row is one JSON delta of one record. Row-level security isolates every user's rows. The client ships only the _publishable_ key. There is no server-side data model — no schema to keep in sync, no passwords anywhere near the app.
 - **Conflict resolution:** last-writer-wins per record (`updated_at`), with a deterministic payload-byte tiebreak on exact timestamp equality. Deletes propagate as tombstones.
 - **Identity:** IndexedDB ids are device-local, so each synced record carries a stable `syncId` (UUID) stamped **additively** at write time; the shared `iron-log` DB is never version-bumped and Iron Log never sees the sync. Fuel ids were already UUIDs; water and recovery logs key by date.
-- **Sign-in:** magic link (passwordless). The `pulse-sync-auth` session persists per origin in `localStorage`.
+- **Sign-in:** emailed code (passwordless), entered in the app. The `pulse-sync-auth` session persists per origin in `localStorage`.
 
-Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add the redirect URLs — production and a local verification port).
+  This is deliberate. An installed iOS home-screen app has its own storage, isolated from Safari; a magic link always opens in a browser and signs in a **different** copy of Pulse. The code is verified in the app the user is holding, and `autocomplete="one-time-code"` lets iOS/Android offer it straight from the email. The email template must be code-only — see `supabase/README.md`.
+
+- **One sign-in per copy.** A browser tab, a Chrome profile and an installed home-screen app each have their own storage. Signing in on each device is what makes the same account's history appear everywhere; it is not a second account.
+
+Setup for the owner: see `supabase/README.md` (apply `supabase/schema.sql`, add the redirect URLs, and replace the Magic Link **and** Confirm signup email templates with `supabase/email-templates/sign-in-code.html`).
 
 - **Automatic sync:** with an active session, Pulse syncs in the background on every local save (debounced ~2.5s), when the tab regains visibility, and on network reconnect. It never runs while signed out.
 - **Backup restore does not reconcile by itself.** After importing a file, tap **Reset cloud to match this device** (Cloud Sync danger zone) to delete every remote row for your account and re-upload this device's state — irreversible.

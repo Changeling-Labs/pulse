@@ -8,11 +8,73 @@ import { exportBackup, importBackup } from '../backup.js';
 import { SET_TYPES, METRIC_LABELS } from '../schema.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { REST_OPTIONS } from './move/timer.js';
-import { getSyncStatus, sendMagicLink, signOutSync, syncNow, resetCloudToLocal } from '../sync.js';
+import { getSyncStatus, sendSignInCode, verifyEmailCode, signOutSync, syncNow, resetCloudToLocal } from '../sync.js';
+import { normalizeEmail, isValidEmail } from '../sync-core.js';
 import { setsCsv, fuelCsv, waterCsv, recoveryCsv, weeklyMarkdown, mondayOf } from '../exports.js';
 import { downloadText } from '../download.js';
 import { localDateStr } from '../dates.js';
 import { primeAudio, cue, audioStatus } from '../cues.js';
+
+// ── Cloud Sync card ────────────────────────────────────────
+// Sign-in is an emailed code, not a magic link. An installed iOS web app has
+// its own storage; a link always opens in Safari (or the default browser) and
+// signs in a different copy of Pulse. A code typed here signs in the copy the
+// user is actually holding, and `autocomplete="one-time-code"` lets the phone
+// offer the code straight from the email.
+const PENDING_EMAIL_KEY = 'pulse-sync-pending-email';
+const PENDING_EMAIL_TTL_MS = 30 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 30 * 1000;
+let pendingEmail = readPendingEmail();
+let lastEmail = pendingEmail;
+let resendAvailableAt = 0;
+let verifyingCode = false;
+
+// localStorage, not sessionStorage: switching to Mail can get the installed
+// app suspended, and asking for a second email just to reach the code field
+// runs into Supabase's send-rate limit. The 30-minute TTL keeps a stale email
+// from reopening the code step forever.
+function readPendingEmail() {
+  try {
+    const raw = localStorage.getItem(PENDING_EMAIL_KEY);
+    if (!raw) return '';
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved.email !== 'string' || !Number.isFinite(saved.at)) return '';
+    if (Date.now() - saved.at > PENDING_EMAIL_TTL_MS) {
+      localStorage.removeItem(PENDING_EMAIL_KEY);
+      return '';
+    }
+    return saved.email;
+  } catch {
+    return '';
+  }
+}
+
+function setPendingEmail(email) {
+  pendingEmail = String(email ?? '');
+  if (pendingEmail) lastEmail = pendingEmail;
+  try {
+    if (pendingEmail) {
+      localStorage.setItem(PENDING_EMAIL_KEY, JSON.stringify({ email: pendingEmail, at: Date.now() }));
+    } else {
+      localStorage.removeItem(PENDING_EMAIL_KEY);
+    }
+  } catch {
+    /* private mode: the in-memory value still carries this page */
+  }
+}
+
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
+}
+
+function isInstalledApp() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    window.matchMedia?.('(display-mode: standalone)').matches
+    || navigator.standalone === true
+  );
+}
 
 function syncCardHtml(status) {
   if (status.signedIn) {
@@ -23,7 +85,7 @@ function syncCardHtml(status) {
     return `
     <div class="setting-row" style="gap:8px">
       <div style="flex:1">
-        <div class="setting-label">${status.email}</div>
+        <div class="setting-label">${escapeHtml(status.email || 'Signed in')}</div>
         <div class="setting-sub">${last} · ${queue}</div>
       </div>
       <button class="btn btn-primary" style="padding:8px 14px" onclick="syncPulseNow()">Sync now</button>
@@ -31,7 +93,7 @@ function syncCardHtml(status) {
     <div class="setting-row" style="gap:8px">
       <div style="flex:1">
         <div class="setting-label">Sign out</div>
-        <div class="setting-sub">The session leaves this device; your cloud rows stay until you delete the project from Supabase.</div>
+        <div class="setting-sub">Signs out this device only — other phones and browsers stay signed in. Your cloud rows stay until you delete the project from Supabase.</div>
       </div>
       <button class="btn btn-ghost" onclick="signOutPulseSync()">Sign out</button>
     </div>
@@ -48,20 +110,56 @@ function syncCardHtml(status) {
       </div>
       <button class="btn btn-ghost" style="color:#f87171;border-color:#f8717144;white-space:nowrap" onclick="resetCloudPulse()">Reset</button>
     </div>
-    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>`;
+    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px" aria-live="polite"></div>`;
   }
+
+  if (pendingEmail) {
+    return `
+    <div class="setting-row" style="gap:8px">
+      <div style="flex:1">
+        <div class="setting-label">Enter your sign-in code</div>
+        <div class="setting-sub">Use the code sent to <b>${escapeHtml(pendingEmail)}</b>. Enter it below to sign in ${isInstalledApp() ? 'this installed app' : 'this browser'}.</div>
+      </div>
+    </div>
+    <div class="setting-row" style="gap:8px">
+      <input type="text" id="sync-code" class="sync-code" inputmode="numeric" autocomplete="one-time-code"
+        autocapitalize="off" spellcheck="false" maxlength="14" placeholder="123456"
+        aria-label="Sign-in code from email"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();verifyPulseSyncCode();}" />
+      <button class="btn btn-primary" id="sync-verify" style="padding:8px 14px;white-space:nowrap" onclick="verifyPulseSyncCode()">Sign in</button>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;padding:2px 0 4px">
+      <button class="btn btn-ghost" id="sync-resend" style="padding:4px 0" onclick="sendPulseSyncCode(true)">Resend code</button>
+      <button class="btn btn-ghost" style="padding:4px 0" onclick="cancelPulseSyncCode()">Use a different email</button>
+    </div>
+    ${isInstalledApp()
+      ? '<div class="setting-sub" style="padding:0 0 4px">Use the code, not the email link — a link opens Safari, which is a separate copy of Pulse.</div>'
+      : ''}
+    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px" aria-live="polite"></div>`;
+  }
+
   return `
     <div class="setting-row" style="gap:8px">
       <div style="flex:1">
         <div class="setting-label">Cloud sync</div>
-        <div class="setting-sub">Optional. Sign in and your sets, exercises, fuel logs, hydration, recovery check-ins and equipment roam across devices. Nothing ever leaves this device until you sign in. Works on every device, including offline training sessions.</div>
+        <div class="setting-sub">Optional. Sets, exercises, fuel, hydration, recovery check-ins and equipment roam across the devices you sign in on. Nothing leaves this device until you do. Use the same email on every device — we email a short code, with no password and no link to open.</div>
       </div>
     </div>
     <div class="setting-row" style="gap:8px">
-      <input type="email" id="sync-email" placeholder="you@example.com" style="flex:1;min-width:0" />
-      <button class="btn btn-primary" style="padding:8px 14px;white-space:nowrap" onclick="sendPulseSyncLink()">Send magic link</button>
+      <input type="email" id="sync-email" value="${escapeHtml(lastEmail)}" placeholder="you@example.com" autocomplete="email" inputmode="email"
+        autocapitalize="off" spellcheck="false" style="flex:1;min-width:0"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();sendPulseSyncCode();}" />
+      <button class="btn btn-primary" id="sync-send" style="padding:8px 14px;white-space:nowrap" onclick="sendPulseSyncCode()">Email me a code</button>
     </div>
-    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px"></div>`;
+    <div class="setting-sub" style="padding:0 0 4px">
+      ${isInstalledApp()
+        ? 'The code signs in this installed app directly. An email link would open Safari, which is a separate copy of Pulse.'
+        : 'The code signs in this browser. If you have Pulse on your home screen, sign in there separately — installed apps keep their own sign-in.'}
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;padding:2px 0 4px">
+      <button class="btn btn-ghost" style="padding:4px 0" onclick="useExistingPulseCode()">I already have a code</button>
+    </div>
+    <div id="sync-status" style="font-size:12px;color:var(--text-2);padding:4px 0;min-height:16px" aria-live="polite"></div>`;
 }
 
 // ── Settings ───────────────────────────────────────────────
@@ -325,23 +423,116 @@ async function updateSyncCard() {
     card.innerHTML = syncCardHtml(await getSyncStatus());
     return document.getElementById('sync-status');
   } catch (e) {
-    card.innerHTML = `<div class="setting-row"><div class="setting-sub">Sync unavailable: ${e.message}</div></div>`;
+    card.innerHTML = `<div class="setting-row"><div class="setting-sub">Sync unavailable: ${escapeHtml(e.message)}</div></div>`;
     return null;
   }
 }
 
-window.sendPulseSyncLink = async function() {
+// The code is tied to the email, not to the copy that requested it. This lets
+// someone who asked for a code in Safari (or on another phone) carry it into
+// the installed app instead of burning another send.
+window.useExistingPulseCode = async function() {
   const input = document.getElementById('sync-email');
-  let status = document.getElementById('sync-status');
-  const email = input?.value?.trim() ?? '';
-  if (status) status.textContent = 'Sending…';
+  const status = document.getElementById('sync-status');
+  const clean = normalizeEmail(input?.value ?? '');
+  if (!isValidEmail(clean)) {
+    if (status) status.textContent = 'Enter the email you used first.';
+    input?.focus();
+    return;
+  }
+  setPendingEmail(clean);
+  await updateSyncCard();
+  document.getElementById('sync-code')?.focus();
+};
+
+window.sendPulseSyncCode = async function(resend = false) {
+  if (window.sendPulseSyncCode.busy) return;
+  const input = document.getElementById('sync-email');
+  const email = resend ? pendingEmail : (input?.value?.trim() ?? '');
+  const status = document.getElementById('sync-status');
+  if (!email) {
+    if (status) status.textContent = 'Enter your email first.';
+    input?.focus();
+    return;
+  }
+  if (resend && Date.now() < resendAvailableAt) {
+    const seconds = Math.ceil((resendAvailableAt - Date.now()) / 1000);
+    if (status) status.textContent = `A code was just sent — try again in ${seconds}s.`;
+    return;
+  }
+
+  window.sendPulseSyncCode.busy = true;
+  const button = document.getElementById(resend ? 'sync-resend' : 'sync-send');
+  const label = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = 'Sending…'; }
+  if (status) status.textContent = resend ? 'Sending a new code…' : 'Sending your code…';
+
   try {
-    await sendMagicLink(email);
-    if (status) status.textContent = `Magic link sent to ${email} — it opens this device, signed in.`;
-    input.value = '';
+    const clean = await sendSignInCode(email);
+    setPendingEmail(clean);
+    resendAvailableAt = Date.now() + RESEND_COOLDOWN_MS;
+    await updateSyncCard();
+    const fresh = document.getElementById('sync-status');
+    if (fresh) {
+      fresh.textContent = resend
+        ? `New code sent to ${clean}. Use only the newest email.`
+        : `Code sent to ${clean}.`;
+    }
+    document.getElementById('sync-code')?.focus();
   } catch (e) {
     if (status) status.textContent = e.message;
+    if (button) { button.disabled = false; button.textContent = label; }
+  } finally {
+    window.sendPulseSyncCode.busy = false;
   }
+};
+
+window.verifyPulseSyncCode = async function() {
+  if (verifyingCode) return;
+  const input = document.getElementById('sync-code');
+  const status = document.getElementById('sync-status');
+  const email = pendingEmail;
+
+  if (!email) {
+    if (status) status.textContent = 'Request a code first.';
+    return;
+  }
+  if (!String(input?.value ?? '').trim()) {
+    if (status) status.textContent = 'Enter the code from the email.';
+    input?.focus();
+    return;
+  }
+
+  verifyingCode = true;
+  const button = document.getElementById('sync-verify');
+  if (button) { button.disabled = true; button.textContent = 'Signing in…'; }
+  if (status) status.textContent = 'Checking the code…';
+
+  try {
+    await verifyEmailCode(email, input?.value ?? '');
+    setPendingEmail('');
+    const fresh = await updateSyncCard();
+    if (fresh) fresh.textContent = 'Signed in. Syncing this device…';
+    try {
+      const s = await syncNow();
+      if (fresh) {
+        fresh.textContent = `Signed in — pushed ${s.pushed}, applied ${s.applied}${s.deletes ? `, deletes ${s.deletes}` : ''}.`;
+      }
+    } catch (e) {
+      if (fresh) fresh.textContent = `Signed in. First sync will retry: ${e?.message ?? e}`;
+    }
+  } catch (e) {
+    if (status) status.textContent = e.message;
+    if (button) { button.disabled = false; button.textContent = 'Sign in'; }
+    input?.select?.();
+  } finally {
+    verifyingCode = false;
+  }
+};
+
+window.cancelPulseSyncCode = async function() {
+  setPendingEmail('');
+  await updateSyncCard();
 };
 
 window.syncPulseNow = async function() {
@@ -382,5 +573,14 @@ window.signOutPulseSync = async function() {
   }
   await updateSyncCard();
 };
+
+// Repaint when auth changes in another tab or through the email flow. Skip it
+// while this card is mid-verification so a race cannot wipe the code or the
+// result message out from under the user.
+if (typeof document !== 'undefined') {
+  document.addEventListener('pulse:sync-changed', () => {
+    if (!verifyingCode) updateSyncCard();
+  });
+}
 
 registerTab('settings', { title: 'Settings', render: renderSettings });

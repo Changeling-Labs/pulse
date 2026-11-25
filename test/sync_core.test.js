@@ -5,6 +5,7 @@ import {
   SYNC_DOMAINS, stableStringify, updatedAtMs, isoFromMs, pickLWW,
   payloadFor, externalIdFor, rowFor, tombstoneFor, validateRow,
   shouldApplyRemote, resolveExerciseRow, isDomain,
+  normalizeEmail, isValidEmail, normalizeOtpCode, isValidOtpCode, authRedirectUrl,
 } from '../js/sync-core.js';
 
 const uuidA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -17,6 +18,36 @@ test('domains are exactly the six we sync', () => {
   assert.deepEqual(SYNC_DOMAINS, ['equipment', 'exercises', 'fuel_logs', 'water_logs', 'recovery_logs', 'sets']);
   assert.ok(isDomain('sets'));
   assert.ok(!isDomain('preferences'));
+});
+
+test('email normalization is forgiving at the edges', () => {
+  assert.equal(normalizeEmail('  Edmund@Example.COM  '), 'edmund@example.com');
+  assert.equal(normalizeEmail(null), '');
+  assert.ok(isValidEmail('edmund@example.com'));
+  assert.ok(isValidEmail('  EDMUND@EXAMPLE.COM '));
+  assert.ok(!isValidEmail('edmund@example'));
+  assert.ok(!isValidEmail('edmund example.com'));
+  assert.ok(!isValidEmail(''));
+});
+
+test('sign-in codes keep 6–10 digits and tolerate pasted separators', () => {
+  assert.equal(normalizeOtpCode(' 123 456 '), '123456');
+  assert.equal(normalizeOtpCode('123-456'), '123456');
+  assert.ok(isValidOtpCode('123456'));
+  assert.ok(isValidOtpCode('123 456 78'));
+  assert.ok(isValidOtpCode('1234567890'));
+  assert.ok(!isValidOtpCode('12345'));
+  assert.ok(!isValidOtpCode('12345678901'));
+  assert.ok(!isValidOtpCode('abcdef'));
+});
+
+test('authRedirectUrl always points at the app directory', () => {
+  assert.equal(authRedirectUrl('https://changelinglabs.com/pulse/'), 'https://changelinglabs.com/pulse/');
+  assert.equal(authRedirectUrl('https://changelinglabs.com/pulse/index.html'), 'https://changelinglabs.com/pulse/');
+  assert.equal(authRedirectUrl('https://changelinglabs.com/pulse'), 'https://changelinglabs.com/pulse/');
+  assert.equal(authRedirectUrl('https://changelinglabs.com/pulse/?a=1#x'), 'https://changelinglabs.com/pulse/');
+  assert.equal(authRedirectUrl({ href: 'http://localhost:8930/' }), 'http://localhost:8930/');
+  assert.equal(authRedirectUrl('not a url'), '');
 });
 
 test('stableStringify is key-order independent', () => {

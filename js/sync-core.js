@@ -16,6 +16,50 @@ export function isDomain(domain) {
   return SYNC_DOMAINS.includes(domain);
 }
 
+// ── Sign-in identity (pure) ────────────────────────────────
+// The email code is the primary sign-in path. A magic link always opens in
+// a browser; on iOS the installed home-screen app has separate storage, so
+// the link can never sign in the app the user is actually holding. A code
+// typed into the app lands in the right storage on every platform.
+export function normalizeEmail(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+export function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
+// Supabase's email OTP length is configurable (6–10 digits). Keep every digit
+// the user pasted and let the server be the authority on the exact length.
+export function normalizeOtpCode(value) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+export function isValidOtpCode(value) {
+  return /^\d{6,10}$/.test(normalizeOtpCode(value));
+}
+
+// Supabase validates emailRedirectTo against the project's allowlist. Always
+// hand it the app directory (never index.html) so /pulse and /pulse/index.html
+// both redirect to /pulse/. Accepts a URL string or a location-like object.
+export function authRedirectUrl(locationLike) {
+  const raw = typeof locationLike === 'string' ? locationLike : locationLike?.href;
+  let url;
+  try {
+    url = new URL(raw || 'http://localhost/');
+  } catch {
+    return '';
+  }
+  url.search = '';
+  url.hash = '';
+  if (!url.pathname.endsWith('/')) {
+    url.pathname = /\.[a-z0-9]+$/i.test(url.pathname)
+      ? url.pathname.replace(/[^/]*$/, '')   // /pulse/index.html → /pulse/
+      : url.pathname + '/';                  // /pulse → /pulse/
+  }
+  return url.toString();
+}
+
 // ── Canonical serialization ────────────────────────────────
 // Sorted-key JSON so both devices can compare two payloads identically.
 export function stableStringify(value) {

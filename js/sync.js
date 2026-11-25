@@ -30,6 +30,7 @@
 import {
   SYNC_DOMAINS, rowFor, tombstoneFor, validateRow, pickLWW, resolveExerciseRow,
   updatedAtMs, isoFromMs, shouldApplyRemote,
+  normalizeEmail, isValidEmail, normalizeOtpCode, isValidOtpCode, authRedirectUrl,
 } from './sync-core.js';
 import {
   SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
@@ -179,7 +180,7 @@ export function supabaseClient() {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,      // magic-link redirects land with #access_token=...
+      detectSessionInUrl: true,      // if a link is opened in this browser, absorb its session
       storageKey: 'pulse-sync-auth',
     },
   });
@@ -201,6 +202,20 @@ export async function initSync() {
       dirtyAdd(domain, externalId, op).catch(err => console.warn('pulse:dirty queue failed', err));
     });
     registerAutoSyncListeners();
+
+    // A successful code verification (or a sign-out in another tab) should
+    // repaint the settings card without a reload. TOKEN_REFRESHED is
+    // deliberately ignored: repainting under a half-typed code is worse than
+    // a slightly stale status line.
+    try {
+      supabaseClient().auth.onAuthStateChange(event => {
+        if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+        document.dispatchEvent(new Event('pulse:sync-changed'));
+        if (event === 'SIGNED_IN') scheduleAutoSync();
+      });
+    } catch (err) {
+      console.warn('sync auth listener unavailable:', err);
+    }
   }
 }
 
@@ -227,19 +242,71 @@ export async function setSyncEnabled(v) {
   return Boolean(v);
 }
 
-export async function sendMagicLink(email) {
-  const clean = String(email ?? '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error('That email does not look valid.');
+// ── Email-code sign-in ─────────────────────────────────────
+// The email contains a short code, not a magic link. The code is verified in
+// whichever copy of Pulse the user is holding, so it works in an installed
+// iOS home-screen app whose storage Safari cannot see. Keep the email template
+// code-only: a link in the same email can be prefetched (or tapped) and
+// consume the one-time token before the user types it.
+function authErrorMessage(error, fallback) {
+  const code = String(error?.code ?? '');
+  const message = String(error?.message ?? fallback);
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || /rate limit/i.test(message)) {
+    return 'Too many sign-in emails — wait a minute, then try again.';
+  }
+  if (code === 'email_address_invalid' || /invalid email/i.test(message)) {
+    return 'That email does not look valid.';
+  }
+  if (code === 'email_provider_disabled') {
+    return 'Email sign-in is turned off for this project.';
+  }
+  if (code === 'signup_disabled' || /signups? not allowed/i.test(message)) {
+    return 'This project is not accepting new sign-ins right now.';
+  }
+  if (code === 'otp_expired' || /expired|invalid|used/i.test(message)) {
+    return 'That code is not right or has expired. Use the newest email, or request a new code.';
+  }
+  return message || fallback;
+}
+
+export async function sendSignInCode(email) {
+  const clean = normalizeEmail(email);
+  if (!isValidEmail(clean)) throw new Error('That email does not look valid.');
   const { error } = await supabaseClient().auth.signInWithOtp({
     email: clean,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname },
+    options: {
+      shouldCreateUser: true,
+      // Kept for the project's redirect allowlist. The code-only template
+      // never sends the user through this URL.
+      emailRedirectTo: authRedirectUrl(window.location.href),
+    },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(authErrorMessage(error, 'Could not send the sign-in code.'));
   return clean;
 }
 
+export async function verifyEmailCode(email, code) {
+  const clean = normalizeEmail(email);
+  const token = normalizeOtpCode(code);
+  if (!isValidEmail(clean)) throw new Error('Enter the email you requested the code for.');
+  if (!isValidOtpCode(token)) throw new Error('Enter the code from the email (6–10 digits).');
+  const { data, error } = await supabaseClient().auth.verifyOtp({
+    email: clean,
+    token,
+    type: 'email',
+  });
+  if (error) throw new Error(authErrorMessage(error, 'Could not verify that code.'));
+  if (!data?.session) throw new Error('That code did not sign this device in. Request a new code and try again.');
+  return data.session;
+}
+
+// Old name kept so out-of-tree callers do not break. New UI uses the code flow.
+export const sendMagicLink = sendSignInCode;
+
 export async function signOutSync() {
-  const { error } = await supabaseClient().auth.signOut();
+  // Local, not global: signing out the copy in Safari must not knock the
+  // installed app (or another phone) offline too.
+  const { error } = await supabaseClient().auth.signOut({ scope: 'local' });
   if (error) throw new Error(error.message);
 }
 
@@ -702,7 +769,7 @@ export async function syncNow() {
 
 async function _syncNow() {
   const { data: { session } } = await supabaseClient().auth.getSession();
-  if (!session) throw new Error('Sign in with the magic link first.');
+  if (!session) throw new Error('Sign in first.');
 
   const progress = { phase: 'bootstrap', pushed: 0, applied: 0, deletes: 0 };
   try {

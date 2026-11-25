@@ -42,6 +42,17 @@ html, body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  /* App-like gestures: pan and scroll, but no pinch or double-tap zoom. */
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Controls respond immediately instead of waiting to see if a double tap is coming. */
+button, a, input, select, textarea, .btn {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 
 #app {
@@ -168,7 +179,7 @@ html, body {
 }
 
 /* ── Forms ───────────────────────────────────────────── */
-select, input[type="text"], input[type="number"] {
+select, input[type="text"], input[type="email"], input[type="number"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-md);
@@ -184,6 +195,20 @@ select, input[type="text"], input[type="number"] {
 }
 
 select:focus, input:focus { border-color: var(--brand-hi); }
+
+/* Email sign-in code: large, spaced digits invite the iOS/Android one-time
+   code suggestion and make a mistyped digit easy to spot. */
+input.sync-code {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  padding-left: 0.28em;       /* balance the trailing letter-space */
+  font-variant-numeric: tabular-nums;
+}
 
 .form-row {
   display: flex;
