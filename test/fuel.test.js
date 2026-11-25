@@ -6,6 +6,7 @@ import {
   PORTION_KEYS,
   PORTION_LABELS,
   PORTION_EXAMPLES,
+  PORTION_META,
   MEAL_TEMPLATES,
   describePortions,
   weeklyHandPortions,
@@ -51,6 +52,8 @@ test('portion metadata covers every category', () => {
   for (const key of PORTION_KEYS) {
     assert.ok(PORTION_LABELS[key][0] && PORTION_LABELS[key][1]);
     assert.ok(PORTION_EXAMPLES[key]);
+    assert.ok(PORTION_META[key].hand && PORTION_META[key].food);
+    assert.ok(PORTION_META[key].macro && PORTION_META[key].tone);
   }
 });
 
@@ -59,6 +62,7 @@ test('meal templates are well-formed and usable', () => {
   assert.equal(new Set(MEAL_TEMPLATES.map(t => t.id)).size, MEAL_TEMPLATES.length);
   for (const template of MEAL_TEMPLATES) {
     assert.ok(template.name);
+    assert.ok(template.emoji);
     assert.equal(typeof template.wholeFood, 'boolean');
     assert.ok(template.note);
     assert.notEqual(describePortions(template.portions), 'No portions');

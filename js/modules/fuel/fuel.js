@@ -4,10 +4,12 @@
 
 import { state, renderTab, registerTab } from '../../kernel/shell.js';
 import { todayStr } from '../../kernel/helpers.js';
-import { getFuelLogs, addFuelLog, deleteFuelLog, getWaterLog, adjustWater, getPref } from '../../db.js';
+import {
+  getFuelLogs, addFuelLog, deleteFuelLog, getWaterLog, setWaterGlasses, getPref,
+} from '../../db.js';
 import {
   calcHandPortions, getDailyMythCard, getRandomMythCard,
-  MEAL_TEMPLATES, PORTION_KEYS, PORTION_LABELS, PORTION_EXAMPLES,
+  MEAL_TEMPLATES, PORTION_KEYS, PORTION_LABELS, PORTION_EXAMPLES, PORTION_META,
   describePortions, weeklyHandPortions,
 } from '../../fuel.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
@@ -20,6 +22,86 @@ import { track } from '../../analytics.js';
 const WATER_TARGET = 8;
 const PROTEIN_TARGET_OPTIONS = [80, 120, 140, 160, 180, 200];
 const FUEL_PORTIONS = ['palms', 'fists', 'cupped', 'thumbs'];
+let waterGlasses = 0;
+let waterWrite = Promise.resolve();
+
+// The protein ring is decorative; the text beside it carries the same
+// information for screen readers and for anyone who cannot see the arc.
+function proteinRingHtml(percent) {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+  const offset = circumference * (1 - pct / 100);
+  return `
+    <div class="protein-ring" aria-hidden="true">
+      <svg viewBox="0 0 84 84" focusable="false">
+        <defs>
+          <linearGradient id="protein-ring-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0056D2"></stop>
+            <stop offset="100%" stop-color="#00F5FF"></stop>
+          </linearGradient>
+        </defs>
+        <circle class="protein-ring-track" cx="42" cy="42" r="${radius}"></circle>
+        <circle class="protein-ring-value" cx="42" cy="42" r="${radius}"
+          stroke-dasharray="${circumference.toFixed(2)}"
+          stroke-dashoffset="${offset.toFixed(2)}"></circle>
+      </svg>
+      <span class="protein-ring-label"><b>${pct}</b><small>%</small></span>
+    </div>`;
+}
+
+function portionLegendHtml() {
+  return `
+    <div class="portion-legend" role="list" aria-label="Hand portion guide">
+      ${PORTION_KEYS.map(key => {
+        const meta = PORTION_META[key];
+        return `<span class="portion-legend-item ${meta.tone}" role="listitem">
+          <span class="portion-legend-emoji" aria-hidden="true">${meta.hand}</span>${meta.macro}
+        </span>`;
+      }).join('')}
+    </div>`;
+}
+
+function waterGlassesHtml(count) {
+  return Array.from({ length: WATER_TARGET }, (_, i) => {
+    const glasses = i + 1;
+    const filled = i < count;
+    return `<button type="button" class="water-glass${filled ? ' filled' : ''}"
+      data-glasses="${glasses}" aria-pressed="${filled}"
+      aria-label="Set hydration to ${glasses} glass${glasses === 1 ? '' : 'es'}"
+      onclick="tapWaterGlass(${glasses})"><span class="water-glass-fill" aria-hidden="true"></span></button>`;
+  }).join('');
+}
+
+// Update hydration in place so tapping a glass does not repaint (and jump
+// to the top of) the whole Fuel tab.
+function updateWaterUI(count) {
+  waterGlasses = Math.max(0, Number(count) || 0);
+  const pct = Math.min(100, Math.round((waterGlasses / WATER_TARGET) * 100));
+  const countEl = document.getElementById('water-count');
+  if (countEl) countEl.innerHTML = `<b>${waterGlasses}</b> / ${WATER_TARGET} glasses`;
+  const fill = document.getElementById('water-fill');
+  if (fill) fill.style.width = `${pct}%`;
+  document.querySelectorAll('.water-glass').forEach((btn, index) => {
+    const filled = index < waterGlasses;
+    btn.classList.toggle('filled', filled);
+    btn.setAttribute('aria-pressed', String(filled));
+  });
+}
+
+// Serialize water writes so two fast taps cannot both read the same starting
+// count and lose one. The target is computed when the queued write runs.
+function queueWaterWrite(targetFor) {
+  waterWrite = waterWrite
+    .catch(() => {})
+    .then(async () => {
+      const target = Math.max(0, Number(targetFor(waterGlasses)) || 0);
+      await setWaterGlasses(todayStr(), target);
+      updateWaterUI(target);
+    })
+    .catch(err => { handleSaveError(err); });
+  return waterWrite;
+}
 
 function templatesCardHtml() {
   return `
@@ -32,11 +114,14 @@ function templatesCardHtml() {
       <div class="meal-template-grid">
         ${MEAL_TEMPLATES.map(template => `
           <button type="button" class="meal-template" onclick="openFuelTemplate('${template.id}')">
-            <span class="meal-template-name">${template.name}</span>
-            <span class="meal-template-portions">${describePortions(template.portions)}</span>
+            <span class="meal-template-emoji" aria-hidden="true">${template.emoji}</span>
+            <span class="meal-template-copy">
+              <span class="meal-template-name">${template.name}</span>
+              <span class="meal-template-portions">${describePortions(template.portions)}</span>
+            </span>
           </button>`).join('')}
       </div>
-      <div class="meal-templates-note">A palm is protein, a fist is vegetables, a cupped hand is carbs, a thumb is fat.</div>
+      ${portionLegendHtml()}
     </div>`;
 }
 
@@ -85,7 +170,9 @@ async function renderFuel(el) {
   const whole = logs.filter(l => l.isWholeFood).length;
   const qualityPct = logs.length ? Math.round((whole / logs.length) * 100) : null;
   const proteinPct = Math.min(100, Math.round((protein / proteinTarget) * 100));
+  const proteinRemaining = Math.max(0, Math.round(proteinTarget) - Math.round(protein));
   const waterPct = Math.min(100, Math.round((water.glasses / WATER_TARGET) * 100));
+  waterGlasses = water.glasses;
 
   const myth = state.fuelMyth || getDailyMythCard(today);
 
@@ -100,33 +187,43 @@ async function renderFuel(el) {
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:12px">
-      <div class="card-head">
-        <div class="card-label">Today · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
-        <select style="width:122px" onchange="setProteinTarget(this.value)" aria-label="Protein target">
+      <div class="card-head fuel-today-head">
+        <div class="card-label">Today · ${new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</div>
+        <select class="fuel-target-select" onchange="setProteinTarget(this.value)" aria-label="Protein target">
           ${PROTEIN_TARGET_OPTIONS.map(t => `<option value="${t}" ${Number(proteinTarget) === t ? 'selected' : ''}>${t} g protein</option>`).join('')}
         </select>
       </div>
 
-      <div class="meter-block">
-        <div class="meter-head"><span>Protein</span><span><b>${Math.round(protein)}</b> / ${proteinTarget} g</span></div>
-        <div class="meter"><div class="meter-fill" style="width:${proteinPct}%"></div></div>
+      <div class="protein-summary">
+        ${proteinRingHtml(proteinPct)}
+        <div class="protein-copy">
+          <div class="protein-title">Protein</div>
+          <div class="protein-numbers"><b>${Math.round(protein)}</b> / ${proteinTarget} g</div>
+          <div class="protein-hint">${proteinPct >= 100 ? 'Target reached' : `${proteinRemaining} g to go`}</div>
+        </div>
       </div>
 
-      <div class="meter-block">
-        <div class="meter-head"><span>Food quality</span><span><b>${qualityPct === null ? '—' : qualityPct + '%'}</b>${logs.length ? ` whole · ${whole}/${logs.length} logged` : ' · nothing logged yet'}</span></div>
-        <div class="meter"><div class="meter-fill${qualityPct === null || qualityPct >= 75 ? ' green' : ''}" style="width:${qualityPct ?? 0}%"></div></div>
+      <div class="meter-block quality-block">
+        <div class="meter-head">
+          <span><span class="meter-icon" aria-hidden="true">🌿</span>Food quality</span>
+          <span><b>${qualityPct === null ? '—' : qualityPct + '%'}</b>${logs.length ? ` whole · ${whole}/${logs.length} logged` : ' · nothing logged yet'}</span>
+        </div>
+        <div class="meter"><div class="meter-fill quality" style="width:${qualityPct ?? 0}%"></div></div>
       </div>
 
-      <div class="meter-block" style="margin-bottom:0">
+      <div class="meter-block water-block" style="margin-bottom:0">
         <div class="meter-head water-row">
           <span>Hydration</span>
           <span class="water-btns">
             <button type="button" class="water-btn" onclick="adjustWaterBy(-1)" aria-label="Less water">−</button>
-            <b>${water.glasses} / ${WATER_TARGET} glasses</b>
+            <span id="water-count" aria-live="polite" aria-atomic="true"><b>${water.glasses}</b> / ${WATER_TARGET} glasses</span>
             <button type="button" class="water-btn" onclick="adjustWaterBy(1)" aria-label="More water">+</button>
           </span>
         </div>
-        <div class="meter"><div class="meter-fill" style="width:${waterPct}%"></div></div>
+        <div class="water-glasses" role="group" aria-label="Hydration glasses">
+          ${waterGlassesHtml(water.glasses)}
+        </div>
+        <div class="meter water-meter"><div class="meter-fill water" id="water-fill" style="width:${waterPct}%"></div></div>
       </div>
     </div>
 
@@ -248,9 +345,14 @@ window.deleteFuelEntry = async function(id) {
   await renderTab('fuel');
 };
 
-window.adjustWaterBy = async function(delta) {
-  await adjustWater(todayStr(), Number(delta) || 0);
-  await renderTab('fuel');
+window.adjustWaterBy = function(delta) {
+  const step = Number(delta) || 0;
+  return queueWaterWrite(current => current + step);
+};
+
+window.tapWaterGlass = function(glasses) {
+  const target = Math.max(0, Math.min(WATER_TARGET, Number(glasses) || 0));
+  return queueWaterWrite(() => target);
 };
 
 window.setProteinTarget = async function(val) {
@@ -265,4 +367,10 @@ window.newMythCard = async function() {
 
 
 
-registerTab('fuel', { title: 'Fuel', fabLabel: 'Log fuel', fabAction: () => window.openFuelModal(), render: renderFuel });
+registerTab('fuel', {
+  title: 'Fuel',
+  fabLabel: 'Log fuel',
+  fabText: 'Log fuel',
+  fabAction: () => window.openFuelModal(),
+  render: renderFuel,
+});

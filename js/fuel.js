@@ -27,6 +27,15 @@ export const PORTION_EXAMPLES = Object.freeze({
   thumbs: 'oil, nuts, seeds, avocado',
 });
 
+// The visual vocabulary shared by the Fuel tab legend and the Log Fuel modal.
+// `hand` is the portion shape; `food` is one example, not a rule.
+export const PORTION_META = Object.freeze({
+  palms: { hand: '🖐️', food: '🥩', macro: 'Protein', tone: 'protein' },
+  fists: { hand: '✊',  food: '🥦', macro: 'Vegetables', tone: 'veg' },
+  cupped: { hand: '🫴', food: '🍚', macro: 'Carbs', tone: 'carbs' },
+  thumbs: { hand: '👍', food: '🥜', macro: 'Fat', tone: 'fat' },
+});
+
 export const PORTION_LABELS = Object.freeze({
   palms: ['palm', 'palms'],
   fists: ['fist', 'fists'],
@@ -40,6 +49,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'eggs-toast',
     name: 'Eggs & toast',
+    emoji: '🍳',
     portions: { palms: 2, fists: 0, cupped: 2, thumbs: 1 },
     wholeFood: true,
     note: 'Eggs, wholegrain toast, butter or oil',
@@ -47,6 +57,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'chicken-rice-bowl',
     name: 'Chicken rice bowl',
+    emoji: '🍗',
     portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
     wholeFood: true,
     note: 'Chicken, rice, mixed veg, olive oil',
@@ -54,6 +65,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'salmon-potato',
     name: 'Salmon & potatoes',
+    emoji: '🐟',
     portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
     wholeFood: true,
     note: 'Salmon, potatoes, greens',
@@ -61,6 +73,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'yoghurt-berries',
     name: 'Yoghurt & berries',
+    emoji: '🫐',
     portions: { palms: 1, fists: 1, cupped: 1, thumbs: 0 },
     wholeFood: true,
     note: 'Greek yoghurt, berries, oats',
@@ -68,6 +81,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'tofu-stirfry',
     name: 'Tofu stir-fry',
+    emoji: '🍲',
     portions: { palms: 2, fists: 2, cupped: 1, thumbs: 1 },
     wholeFood: true,
     note: 'Tofu, mixed veg, rice, sesame oil',
@@ -75,6 +89,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'beans-toast',
     name: 'Beans on toast',
+    emoji: '🍞',
     portions: { palms: 1, fists: 2, cupped: 2, thumbs: 1 },
     wholeFood: true,
     note: 'Beans, wholegrain toast, olive oil',
@@ -82,6 +97,7 @@ export const MEAL_TEMPLATES = Object.freeze([
   {
     id: 'oats-peanut-butter',
     name: 'Oats & peanut butter',
+    emoji: '🥣',
     portions: { palms: 1, fists: 0, cupped: 2, thumbs: 1 },
     wholeFood: true,
     note: 'Oats, milk or yoghurt, peanut butter',

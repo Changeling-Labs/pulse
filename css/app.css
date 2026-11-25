@@ -920,29 +920,180 @@ body.rest-active #content { padding-bottom: 104px; }
 .muted { color: var(--text-2); font-size: 13px; }
 
 /* ── Pulse Fuel ─────────────────────────────────────── */
+/* Protein ring + trackers */
+.fuel-target-select { width: 122px; }
+
+.protein-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0 14px;
+}
+
+.protein-ring {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+}
+
+.protein-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.protein-ring circle {
+  fill: none;
+  stroke-width: 7;
+}
+
+.protein-ring-track { stroke: rgba(158, 196, 255, 0.14); }
+
+.protein-ring-value {
+  stroke: url(#protein-ring-gradient);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(0, 245, 255, 0.25));
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.protein-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.protein-ring-label b { font-size: 22px; line-height: 1; }
+.protein-ring-label small { font-size: 11px; color: var(--text-2); }
+
+.protein-copy { flex: 1; min-width: 0; }
+.protein-title { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+.protein-numbers { margin-top: 2px; font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1.1; }
+.protein-numbers b { color: var(--text); }
+.protein-hint { margin-top: 2px; font-size: 11px; color: var(--text-3); }
+
 .meter-block { margin: 16px 0; }
-.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
 .meter-head b { color: var(--text); font-weight: 600; }
-.meter { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.meter-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--glow)); border-radius: 4px; width: 0%; transition: width 0.3s; }
-.meter-fill.green { background: var(--green); }
+.meter-icon { margin-right: 4px; font-size: 12px; }
+
+.meter {
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--glow));
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.2);
+  transition: width 0.3s ease;
+}
+
+.meter-fill.quality { background: linear-gradient(90deg, var(--green), #8FF3D0); box-shadow: 0 0 12px rgba(52, 211, 153, 0.2); }
+.meter-fill.water { background: linear-gradient(90deg, var(--brand-hi), var(--glow)); }
 
 .water-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .water-btns { display: flex; align-items: center; gap: 8px; }
-.water-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-md); background: none; color: var(--text-2); font-size: 17px; cursor: pointer; }
+.water-btn { width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border-md); background: none; color: var(--text-2); font-size: 17px; cursor: pointer; }
 .water-btn:active { border-color: var(--brand-hi); color: var(--glow); }
 
+.water-glasses {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 5px;
+  margin: 2px 0 8px;
+}
+
+.water-glass {
+  position: relative;
+  justify-self: center;
+  width: 100%;
+  max-width: 38px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-md);
+  border-radius: 4px 4px 9px 9px;
+  background: var(--surface-2);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.water-glass:active { transform: scale(0.94); }
+.water-glass.filled { border-color: rgba(0, 245, 255, 0.45); box-shadow: 0 0 10px rgba(0, 245, 255, 0.12); }
+
+.water-glass-fill {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 2px;
+  height: 0;
+  border-radius: 2px 2px 7px 7px;
+  background: linear-gradient(180deg, rgba(0, 245, 255, 0.85), rgba(0, 86, 210, 0.9));
+  transition: height 0.2s ease;
+}
+
+.water-glass.filled .water-glass-fill { height: calc(100% - 5px); }
+
 .portion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.portion-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.portion-emoji { font-size: 34px; line-height: 1.2; }
+
+.portion-tile {
+  --portion-color: var(--glow);
+  --portion-dim: rgba(0, 245, 255, 0.1);
+  --portion-line: rgba(0, 245, 255, 0.3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.portion-tile.protein { --portion-color: #FF8A7A; --portion-dim: rgba(255, 138, 122, 0.12); --portion-line: rgba(255, 138, 122, 0.34); }
+.portion-tile.veg { --portion-color: var(--green); --portion-dim: var(--green-dim); --portion-line: rgba(52, 211, 153, 0.34); }
+.portion-tile.carbs { --portion-color: #F5C26B; --portion-dim: rgba(245, 194, 107, 0.12); --portion-line: rgba(245, 194, 107, 0.34); }
+.portion-tile.fat { --portion-color: #E9B072; --portion-dim: rgba(233, 176, 114, 0.12); --portion-line: rgba(233, 176, 114, 0.34); }
+
+.portion-emoji { display: flex; align-items: center; gap: 2px; line-height: 1.2; }
+.portion-hand { font-size: 24px; }
+.portion-food { font-size: 32px; }
 .portion-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .portion-sub { font-size: 9px; color: var(--text-3); text-align: center; }
-.portion-stepper { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
-.portion-stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-md); background: none; color: var(--glow); font-size: 19px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.portion-stepper button:active { border-color: var(--brand-hi); }
-.portion-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; min-width: 26px; text-align: center; }
+.portion-stepper { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
 
-.fuel-estimate { text-align: center; font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text-2); margin-top: 12px; }
+.portion-stepper button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--portion-line);
+  background: var(--portion-dim);
+  color: var(--portion-color);
+  font-size: 20px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.portion-stepper button:active { transform: scale(0.94); border-color: var(--portion-color); background: var(--portion-color); color: var(--bg); }
+.portion-count { font-family: var(--font-display); font-size: 24px; font-weight: 700; min-width: 24px; text-align: center; color: var(--portion-color); }
+
+#fuel-modal .mode-btn.active { box-shadow: 0 0 18px rgba(0, 245, 255, 0.24); }
+#fuel-modal .btn-primary { box-shadow: 0 6px 20px rgba(0, 86, 210, 0.35); }
+
+.fuel-estimate { text-align: center; font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text-2); margin-top: 14px; }
 .fuel-estimate b { color: var(--glow); }
 
 .myth-card { background: linear-gradient(165deg, rgba(0,245,255,0.10), var(--surface) 55%); border: 1px solid rgba(0,245,255,0.28); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
@@ -966,12 +1117,18 @@ body.rest-active #content { padding-bottom: 104px; }
   gap: 8px;
 }
 
+@media (max-width: 360px) {
+  .fuel-today-head { flex-wrap: wrap; }
+  .fuel-target-select { width: 150px; }
+  .meal-template-grid { grid-template-columns: 1fr; }
+}
+
 .meal-template {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 10px 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
   border: 1px solid var(--border-md);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -983,6 +1140,26 @@ body.rest-active #content { padding-bottom: 104px; }
 }
 
 .meal-template:hover { border-color: var(--brand-hi); }
+
+.meal-template-emoji {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  border-radius: 10px;
+  background: rgba(0, 245, 255, 0.06);
+  border: 1px solid var(--border);
+}
+
+.meal-template-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .meal-template-name { font-size: 13px; font-weight: 600; }
 .meal-template-portions {
   font-size: 10px;
@@ -990,12 +1167,32 @@ body.rest-active #content { padding-bottom: 104px; }
   color: var(--text-3);
 }
 
-.meal-templates-note {
-  margin-top: 10px;
-  font-size: 10px;
-  line-height: 1.4;
-  color: var(--text-3);
+.portion-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
 }
+
+.portion-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.portion-legend-emoji { font-size: 13px; line-height: 1; }
+.portion-legend-item.protein { color: #FF9C8E; border-color: rgba(255, 138, 122, 0.28); background: rgba(255, 138, 122, 0.08); }
+.portion-legend-item.veg { color: var(--green); border-color: rgba(52, 211, 153, 0.28); background: var(--green-dim); }
+.portion-legend-item.carbs { color: #F5C26B; border-color: rgba(245, 194, 107, 0.28); background: rgba(245, 194, 107, 0.08); }
+.portion-legend-item.fat { color: #E9B072; border-color: rgba(233, 176, 114, 0.28); background: rgba(233, 176, 114, 0.08); }
 
 .shopping-card { border-color: rgba(52, 211, 153, 0.28); }
 
