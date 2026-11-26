@@ -25,6 +25,7 @@ const NEW_LOG = {
   fatGrams: 10,
   calories: 190,                 // 25 × 4 + 10 × 9
   vegPortions: 1,
+  wholeFoodLevel: 'whole',
   isWholeFood: true,
   handPortions: { palms: 1, fists: 1, cupped: 0, thumbs: 1 },
   notes: 'post-workout lunch',
@@ -58,6 +59,7 @@ test('normalizeFuelLog fills defaults for a sparse record', () => {
   assert.equal(out.calories, 0);
   assert.equal(out.vegPortions, 0);
   assert.equal(out.isWholeFood, true);
+  assert.equal(out.wholeFoodLevel, 'whole');
   assert.deepEqual(out.components, {
     protein: { size: 'palm', count: 0 },
     veg: { size: 'fist', count: 0 },
@@ -82,6 +84,22 @@ test('normalizeFuelLog migrates legacy handPortions into components', () => {
   assert.equal(out.carbsGrams, 0);
   assert.equal(out.fatGrams, 10);
   assert.equal(out.vegPortions, 1);
+  assert.equal(out.wholeFoodLevel, 'processed');
+  assert.equal(out.isWholeFood, false);
+});
+
+test('normalizeFuelLog maps wholeFoodLevel and derives the legacy boolean', () => {
+  const mixed = normalizeFuelLog({ wholeFoodLevel: 'mixed', isWholeFood: true });
+  assert.equal(mixed.wholeFoodLevel, 'mixed');
+  assert.equal(mixed.isWholeFood, false);
+
+  const legacyFalse = normalizeFuelLog({ isWholeFood: false });
+  assert.equal(legacyFalse.wholeFoodLevel, 'processed');
+  assert.equal(legacyFalse.isWholeFood, false);
+
+  const legacyTrue = normalizeFuelLog({ isWholeFood: true });
+  assert.equal(legacyTrue.wholeFoodLevel, 'whole');
+  assert.equal(legacyTrue.isWholeFood, true);
 });
 
 test('normalizeFuelLog derives legacy macros when they are missing or invalid', () => {
@@ -142,6 +160,7 @@ test('validateFuelLog enforces bounds and component shape', () => {
   assert.equal(validateFuelLog({ ...base(), calories: -1 }).ok, false);
   assert.equal(validateFuelLog({ ...base(), vegPortions: 201 }).ok, false);
   assert.equal(validateFuelLog({ ...base(), isWholeFood: 'yes' }).ok, false);
+  assert.equal(validateFuelLog({ ...base(), wholeFoodLevel: 'sometimes' }).ok, false);
   assert.equal(validateFuelLog({ ...base(), date: '05/11/2026' }).ok, false);
 
   const tooMany = {
@@ -219,6 +238,7 @@ test('migrateBackup migrates v4 fuel handPortions into v5 components', () => {
   });
   assert.equal(out.fuelLogs[0].carbsGrams, 0);
   assert.equal(out.fuelLogs[0].fatGrams, 0);
+  assert.equal(out.fuelLogs[0].wholeFoodLevel, 'processed');
   assert.equal(out.waterLogs[0].glasses, 6);
 });
 

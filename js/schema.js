@@ -2,7 +2,7 @@
 import { localDateStr } from './dates.js';
 import { inferPattern, isPattern } from './patterns.js';
 import {
-  COMPONENT_KEYS, PORTION_SIZES,
+  COMPONENT_KEYS, PORTION_SIZES, WHOLE_FOOD_LEVELS,
   normalizeMealComponents, calcMealComponents, handPortionsFromComponents,
 } from './fuel.js';
 
@@ -70,10 +70,6 @@ function intOr(value, def) {
   return Math.floor(n);
 }
 
-function boolOr(value, def) {
-  return typeof value === 'boolean' ? value : def;
-}
-
 export function normalizeHandPortions(p = {}) {
   const out = {};
   for (const key of FUEL_LOG_KEYS) out[key] = intOr(p?.[key], 0);
@@ -129,7 +125,14 @@ export function normalizeFuelLog(raw = {}) {
     log.vegPortions = nonNegNumberOr(log.vegPortions, macros.vegPortions);
   }
 
-  log.isWholeFood = boolOr(log.isWholeFood, true);
+  // Three-state whole-food level. Old logs only had a boolean; false maps to
+  // processed, true/missing maps to whole. isWholeFood stays as a derived
+  // compatibility field for older readers (mixed is not "fully whole").
+  const wholeFoodLevel = WHOLE_FOOD_LEVELS.includes(log.wholeFoodLevel)
+    ? log.wholeFoodLevel
+    : (typeof log.isWholeFood === 'boolean' ? (log.isWholeFood ? 'whole' : 'processed') : 'whole');
+  log.wholeFoodLevel = wholeFoodLevel;
+  log.isWholeFood = wholeFoodLevel === 'whole';
   log.notes = typeof log.notes === 'string' ? log.notes : '';
 
   return log;
@@ -155,6 +158,9 @@ export function validateFuelLog(log = {}) {
     return { ok: false, error: 'Vegetable portions must be between 0 and 200.' };
   }
   if (typeof log.isWholeFood !== 'boolean') return { ok: false, error: 'isWholeFood must be a boolean.' };
+  if (!WHOLE_FOOD_LEVELS.includes(log.wholeFoodLevel)) {
+    return { ok: false, error: `wholeFoodLevel must be one of ${WHOLE_FOOD_LEVELS.join(', ')}.` };
+  }
 
   const components = log.components || {};
   for (const key of COMPONENT_KEYS) {
@@ -243,7 +249,9 @@ export function validateRecoveryLog(log = {}) {
 // `weightLbs` in v2.13.0) because import normalizes each record, not the file.
 // v5 = fuel logs carry category × size `components` (plus carbs/fat/veg).
 // v4 fuel logs migrate through handPortions with the original category map.
-export const BACKUP_VERSION = 5;
+// v6 = fuel logs carry `wholeFoodLevel` (whole/mixed/processed); the old
+// boolean `isWholeFood` is derived for compatibility.
+export const BACKUP_VERSION = 6;
 
 // Fill in defaults so every consumer can assume a uniform shape.
 // `groupId`/`round` mark membership of a circuit, and `restSec` carries the
@@ -318,6 +326,8 @@ export function migrateBackup(data) {
   // v4 → v5: fuel logs gained category × size `components`. v4 handPortions
   // map one-to-one to the original category/size defaults, so old fuel
   // entries keep their meaning and gain carbs/fat/veg estimates.
+  // v5 → v6: fuel logs gained `wholeFoodLevel`; the old `isWholeFood`
+  // boolean maps to whole/processed, and mixed is available from v6 on.
   const exercises = data.exercises.map(normalizeExercise);
   const fuelLogs = Array.isArray(data.fuelLogs) ? data.fuelLogs.map(normalizeFuelLog) : [];
   const waterLogs = Array.isArray(data.waterLogs) ? data.waterLogs.map(normalizeWaterLog) : [];

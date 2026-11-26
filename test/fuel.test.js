@@ -10,6 +10,9 @@ import {
   PORTION_SIZES,
   COMPONENT_META,
   SIZE_META,
+  WHOLE_FOOD_LEVELS,
+  WHOLE_FOOD_META,
+  wholeFoodScore,
   DEFAULT_COMPONENT_SIZES,
   COMPONENT_PORTION_MACROS,
   componentsFromHandPortions,
@@ -67,7 +70,7 @@ test('portion metadata covers every category', () => {
 
 test('category × size metadata covers the whole matrix', () => {
   assert.deepEqual(COMPONENT_KEYS, ['protein', 'veg', 'carbs', 'fat']);
-  assert.deepEqual(PORTION_SIZES, ['thumb', 'palm', 'cupped', 'fist']);
+  assert.deepEqual(PORTION_SIZES, ['fist', 'cupped', 'palm', 'thumb']);
   for (const key of COMPONENT_KEYS) {
     const meta = COMPONENT_META[key];
     assert.ok(meta.label && meta.tone && meta.examples);
@@ -81,6 +84,15 @@ test('category × size metadata covers the whole matrix', () => {
     assert.ok(SIZE_META[size].label && SIZE_META[size].hand);
     assert.ok(SIZE_META[size].volume && SIZE_META[size].plural);
   }
+});
+
+test('whole-food levels carry a weighted score', () => {
+  assert.deepEqual(WHOLE_FOOD_LEVELS, ['whole', 'mixed', 'processed']);
+  assert.equal(wholeFoodScore('whole'), 1);
+  assert.equal(wholeFoodScore('mixed'), 0.5);
+  assert.equal(wholeFoodScore('processed'), 0);
+  assert.equal(wholeFoodScore('garbage'), 1);   // missing/unseen defaults to whole
+  assert.ok(WHOLE_FOOD_META.mixed.hint);
 });
 
 test('legacy hand portions map to the original category and size', () => {
@@ -207,6 +219,17 @@ test('weeklyHandPortions averages logged days and projects the next week', () =>
   assert.equal(week.loggedDays, 2);
   assert.deepEqual(week.totals, { palms: 4, fists: 2, cupped: 3, thumbs: 1 });
   assert.deepEqual(week.projected, { palms: 14, fists: 7, cupped: 11, thumbs: 4 });
+  assert.equal(week.wholeShare, 50);
+});
+
+test('weeklyHandPortions weights mixed meals at half', () => {
+  const logs = [
+    { date: '2026-11-07', handPortions: { palms: 1 }, wholeFoodLevel: 'whole' },
+    { date: '2026-11-06', handPortions: { palms: 1 }, wholeFoodLevel: 'mixed' },
+    { date: '2026-11-05', handPortions: { palms: 1 }, wholeFoodLevel: 'processed' },
+  ];
+  const week = weeklyHandPortions(logs, '2026-11-07', 7);
+  assert.equal(week.loggedDays, 3);
   assert.equal(week.wholeShare, 50);
 });
 

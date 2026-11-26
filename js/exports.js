@@ -7,6 +7,7 @@
 
 import { localDateStr } from './dates.js';
 import { mondayOf } from './insights.js';
+import { wholeFoodScore } from './fuel.js';
 
 export { mondayOf };
 
@@ -81,7 +82,9 @@ export function fuelCsv(logs = []) {
       typeof l.timestamp === 'string' ? l.timestamp : '',
       numOr(l.proteinGrams),
       numOr(l.calories),
-      l.isWholeFood === false ? 'no' : (l.isWholeFood ? 'yes' : ''),
+      l.wholeFoodLevel === 'mixed'
+        ? 'mixed'
+        : (l.wholeFoodLevel === 'processed' || l.isWholeFood === false ? 'no' : (l.isWholeFood ? 'yes' : '')),
       numOr(l.handPortions?.palms),
       numOr(l.handPortions?.fists),
       numOr(l.handPortions?.cupped),
@@ -220,14 +223,17 @@ export function weeklyMarkdown({
   } else {
     const protein = weekFuel.reduce((sum, l) => sum + (Number(l.proteinGrams) || 0), 0);
     const calories = weekFuel.reduce((sum, l) => sum + (Number(l.calories) || 0), 0);
-    const whole = weekFuel.filter(l => l.isWholeFood).length;
+    const wholeScore = weekFuel.reduce((sum, l) => {
+      const level = l.wholeFoodLevel || (l.isWholeFood === false ? 'processed' : 'whole');
+      return sum + wholeFoodScore(level);
+    }, 0);
     const water = weekWater.reduce((sum, l) => sum + (Number(l.glasses) || 0), 0);
     lines.push(mdTable(
       ['Protein', 'Calories', 'Whole-food', 'Water'],
       [[
         `${Math.round(protein)} g`,
         `${Math.round(calories)} kcal`,
-        weekFuel.length ? `${Math.round((whole / weekFuel.length) * 100)}%` : '—',
+        weekFuel.length ? `${Math.round((wholeScore / weekFuel.length) * 100)}%` : '—',
         water ? `${water} glasses` : '—',
       ]]
     ), '');

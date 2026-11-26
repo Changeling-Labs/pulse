@@ -10,9 +10,9 @@ import {
 import {
   getDailyMythCard, getRandomMythCard,
   MEAL_TEMPLATES, PORTION_KEYS, PORTION_SIZES, PORTION_EXAMPLES,
-  SIZE_META, COMPONENT_KEYS,
+  SIZE_META, COMPONENT_KEYS, WHOLE_FOOD_LEVELS, WHOLE_FOOD_META,
   normalizeMealComponents, calcMealComponents, componentsFromHandPortions,
-  describeComponents, describePortions, weeklyHandPortions,
+  describeComponents, describePortions, weeklyHandPortions, wholeFoodScore,
 } from '../../fuel.js';
 import { openDialog, closeDialog, trapDialog } from '../../kernel/a11y.js';
 import { handleSaveError } from '../../kernel/errors.js';
@@ -160,7 +160,7 @@ function shoppingCardHtml(allLogs, today) {
           </div>`;
         }).join('')}
       </div>
-      <div class="shopping-foot">${week.logs} meal${week.logs === 1 ? '' : 's'} logged${week.wholeShare !== null ? ` · ${week.wholeShare}% whole food` : ''}.</div>
+      <div class="shopping-foot">${week.logs} meal${week.logs === 1 ? '' : 's'} logged${week.wholeShare !== null ? ` · ${week.wholeShare}% whole-food share` : ''}.</div>
     </div>`;
 }
 
@@ -176,8 +176,17 @@ async function renderFuel(el) {
 
   const protein = logs.reduce((sum, l) => sum + l.proteinGrams, 0);
   const calories = logs.reduce((sum, l) => sum + l.calories, 0);
-  const whole = logs.filter(l => l.isWholeFood).length;
-  const qualityPct = logs.length ? Math.round((whole / logs.length) * 100) : null;
+  const whole = logs.filter(l => l.wholeFoodLevel === 'whole').length;
+  const mixed = logs.filter(l => l.wholeFoodLevel === 'mixed').length;
+  const processed = logs.filter(l => l.wholeFoodLevel === 'processed').length;
+  const qualityPct = logs.length
+    ? Math.round((logs.reduce((sum, l) => sum + wholeFoodScore(l.wholeFoodLevel), 0) / logs.length) * 100)
+    : null;
+  const qualityBreakdown = [
+    `${whole} whole`,
+    mixed ? `${mixed} mixed` : '',
+    processed ? `${processed} processed` : '',
+  ].filter(Boolean).join(' · ');
   const proteinPct = Math.min(100, Math.round((protein / proteinTarget) * 100));
   const proteinRemaining = Math.max(0, Math.round(proteinTarget) - Math.round(protein));
   const waterPct = Math.min(100, Math.round((water.glasses / WATER_TARGET) * 100));
@@ -188,6 +197,13 @@ async function renderFuel(el) {
   const portionText = l => {
     const hasComponents = COMPONENT_KEYS.some(key => l.components?.[key]?.count > 0);
     return hasComponents ? describeComponents(l.components) : 'note only';
+  };
+
+  const wholeFoodBadge = l => {
+    const level = l.wholeFoodLevel || (l.isWholeFood ? 'whole' : 'processed');
+    if (level === 'whole') return '<span class="fuel-check">✓ whole</span>';
+    if (level === 'mixed') return '<span class="fuel-check mixed">◐ mixed</span>';
+    return '<span class="fuel-check processed">○ processed</span>';
   };
 
   el.innerHTML = `
@@ -211,7 +227,7 @@ async function renderFuel(el) {
       <div class="meter-block quality-block">
         <div class="meter-head">
           <span><span class="meter-icon" aria-hidden="true">🌿</span>Whole-food share</span>
-          <span><b>${qualityPct === null ? '—' : qualityPct + '%'}</b>${logs.length ? ` whole · ${whole}/${logs.length} logged` : ' · nothing logged yet'}</span>
+          <span><b>${qualityPct === null ? '—' : qualityPct + '%'}</b>${logs.length ? ` · ${qualityBreakdown}` : ' · nothing logged yet'}</span>
         </div>
         <div class="meter"><div class="meter-fill quality" style="width:${qualityPct ?? 0}%"></div></div>
       </div>
@@ -250,7 +266,7 @@ async function renderFuel(el) {
         : logs.map(l => `
             <div class="fuel-row" data-id="${l.id}">
               <div>
-                <div class="fuel-name">${new Date(l.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${l.isWholeFood ? '<span class="fuel-check">✓ whole</span>' : ''}</div>
+                <div class="fuel-name">${new Date(l.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${wholeFoodBadge(l)}</div>
                 <div class="fuel-detail">${portionText(l)}${l.notes ? ` · ${l.notes}` : ''}</div>
               </div>
               <div style="display:flex;align-items:center;gap:10px">
@@ -268,7 +284,7 @@ async function renderFuel(el) {
 
 // ── Fuel modal: category × size estimator ──────────────────
 let fuelComponents = normalizeMealComponents();
-let fuelWholeFood = true;
+let fuelWholeFoodLevel = 'whole';
 let guideTrapReady = false;
 
 function componentDetail(key, entry) {
@@ -319,14 +335,18 @@ function renderFuelEstimate() {
       : 'Tap + on the foods that were on the plate.';
   }
 
-  document.getElementById('whole-yes').classList.toggle('active', fuelWholeFood);
-  document.getElementById('whole-no').classList.toggle('active', !fuelWholeFood);
-  document.getElementById('fuel-whole-hint').textContent = fuelWholeFood ? 'Minimally processed' : 'Ultra-processed / packaged';
+  document.querySelectorAll('#fuel-modal .mode-btn[data-whole-level]').forEach(btn => {
+    const active = btn.dataset.wholeLevel === fuelWholeFoodLevel;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+  const hint = WHOLE_FOOD_META[fuelWholeFoodLevel] || WHOLE_FOOD_META.whole;
+  document.getElementById('fuel-whole-hint').textContent = hint.hint;
 }
 
-function openFuelModalWith(components, wholeFood, note = '') {
+function openFuelModalWith(components, wholeFoodLevel, note = '') {
   fuelComponents = normalizeMealComponents(components);
-  fuelWholeFood = Boolean(wholeFood);
+  fuelWholeFoodLevel = WHOLE_FOOD_LEVELS.includes(wholeFoodLevel) ? wholeFoodLevel : 'whole';
   document.getElementById('fuel-notes').value = note;
   renderFuelEstimate();
   const modal = document.getElementById('fuel-modal');
@@ -337,13 +357,17 @@ function openFuelModalWith(components, wholeFood, note = '') {
 }
 
 window.openFuelModal = function() {
-  openFuelModalWith(null, true, '');
+  openFuelModalWith(null, 'whole', '');
 };
 
 window.openFuelTemplate = function(id) {
   const template = MEAL_TEMPLATES.find(item => item.id === id);
   if (!template) return;
-  openFuelModalWith(componentsFromHandPortions(template.portions), template.wholeFood, template.name);
+  openFuelModalWith(
+    componentsFromHandPortions(template.portions),
+    template.wholeFood ? 'whole' : 'processed',
+    template.name
+  );
 };
 
 window.closeFuelModal = function() {
@@ -363,8 +387,9 @@ window.setPortionSize = function(component, size) {
   renderFuelEstimate();
 };
 
-window.setFuelWholeFood = function(yes) {
-  fuelWholeFood = Boolean(yes);
+window.setFuelWholeFoodLevel = function(level) {
+  if (!WHOLE_FOOD_LEVELS.includes(level)) return;
+  fuelWholeFoodLevel = level;
   renderFuelEstimate();
 };
 
@@ -392,7 +417,7 @@ window.submitFuelLog = async function() {
       timestamp: new Date().toISOString(),
       date: todayStr(),
       components: Object.fromEntries(COMPONENT_KEYS.map(key => [key, { ...fuelComponents[key] }])),
-      isWholeFood: fuelWholeFood,
+      wholeFoodLevel: fuelWholeFoodLevel,
       notes,
     });
     track('meal-logged');

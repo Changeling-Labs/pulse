@@ -979,6 +979,7 @@ body.rest-active #content { padding-bottom: 104px; }
 
 .meter-block { margin: 16px 0; }
 .meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
+.quality-block .meter-head { flex-wrap: wrap; row-gap: 2px; }
 .meter-head b { color: var(--text); font-weight: 600; }
 .meter-icon { margin-right: 4px; font-size: 12px; }
 
@@ -1331,6 +1332,8 @@ body.rest-active #content { padding-bottom: 104px; }
 .fuel-name { font-weight: 600; font-size: 13px; }
 .fuel-detail { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 .fuel-check { color: var(--green); font-size: 11px; margin-left: 6px; }
+.fuel-check.mixed { color: #F5C26B; }
+.fuel-check.processed { color: var(--text-3); }
 
 /* ── Changeling focus ring ── */
 :where(button, select, input, a, [role="button"]):focus-visible {

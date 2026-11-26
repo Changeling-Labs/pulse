@@ -37,7 +37,7 @@ export const PORTION_EXAMPLES = Object.freeze({
 // both valid estimates. The old handPortions shape is kept as a derived
 // compatibility field for older app versions, backups and the weekly guide.
 export const COMPONENT_KEYS = Object.freeze(['protein', 'veg', 'carbs', 'fat']);
-export const PORTION_SIZES = Object.freeze(['thumb', 'palm', 'cupped', 'fist']);
+export const PORTION_SIZES = Object.freeze(['fist', 'cupped', 'palm', 'thumb']);
 
 export const COMPONENT_META = Object.freeze({
   protein: { label: 'Protein', tone: 'protein', defaultSize: 'palm', examples: 'steak, fish, eggs, tofu, yoghurt, beans' },
@@ -46,11 +46,26 @@ export const COMPONENT_META = Object.freeze({
   fat: { label: 'Fat', tone: 'fat', defaultSize: 'thumb', examples: 'oil, butter, cheese, nuts, avocado' },
 });
 
+export const WHOLE_FOOD_LEVELS = Object.freeze(['whole', 'mixed', 'processed']);
+
+export const WHOLE_FOOD_META = Object.freeze({
+  whole: { label: 'Whole', hint: 'Mostly whole' },
+  mixed: { label: 'Mixed', hint: 'A mix of whole and processed' },
+  processed: { label: 'Processed', hint: 'Mostly processed' },
+});
+
+// Weighted share used by the daily card and weekly guide. A mixed meal counts
+// as half whole; that is deliberately a rough summary, not a nutrient score.
+export function wholeFoodScore(value) {
+  const level = WHOLE_FOOD_LEVELS.includes(value) ? value : 'whole';
+  return level === 'whole' ? 1 : level === 'mixed' ? 0.5 : 0;
+}
+
 export const SIZE_META = Object.freeze({
-  thumb: { label: 'Thumb', plural: 'thumbs', hand: '👍', volume: '~1 tbsp', examples: 'oil, butter, cheese' },
-  palm: { label: 'Palm', plural: 'palms', hand: '🖐️', volume: '~3 oz', examples: 'steak, fish, chicken' },
-  cupped: { label: 'Cupped', plural: 'cupped', hand: '🫴', volume: '~½ cup', examples: 'rice, yoghurt, nuts' },
   fist: { label: 'Fist', plural: 'fists', hand: '✊', volume: '~1 cup', examples: 'vegetables, fruit, diced meat' },
+  cupped: { label: 'Cupped', plural: 'cupped', hand: '🫴', volume: '~½ cup', examples: 'rice, yoghurt, nuts' },
+  palm: { label: 'Palm', plural: 'palms', hand: '🖐️', volume: '~3 oz', examples: 'steak, fish, chicken' },
+  thumb: { label: 'Thumb', plural: 'thumbs', hand: '👍', volume: '~1 tbsp', examples: 'oil, butter, cheese' },
 });
 
 export const DEFAULT_COMPONENT_SIZES = Object.freeze(
@@ -261,12 +276,15 @@ export function weeklyHandPortions(logs, endDate, days = 7) {
 
   const totals = Object.fromEntries(PORTION_KEYS.map(key => [key, 0]));
   const dates = new Set();
-  let whole = 0;
+  let wholeScore = 0;
 
   for (const log of inRange) {
     dates.add(log.date);
     for (const key of PORTION_KEYS) totals[key] += clampCount(log.handPortions?.[key]);
-    if (log.isWholeFood) whole += 1;
+    const level = WHOLE_FOOD_LEVELS.includes(log.wholeFoodLevel)
+      ? log.wholeFoodLevel
+      : (log.isWholeFood === false ? 'processed' : 'whole');
+    wholeScore += wholeFoodScore(level);
   }
 
   const loggedDays = dates.size;
@@ -283,7 +301,7 @@ export function weeklyHandPortions(logs, endDate, days = 7) {
     loggedDays,
     totals,
     projected,
-    wholeShare: inRange.length ? Math.round((whole / inRange.length) * 100) : null,
+    wholeShare: inRange.length ? Math.round((wholeScore / inRange.length) * 100) : null,
   };
 }
 

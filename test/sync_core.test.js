@@ -126,6 +126,7 @@ test('fuel_logs keep the uuid id; water_logs key by date', () => {
   assert.equal(row.payload.proteinGrams, 30);
   assert.deepEqual(row.payload.components.protein, { size: 'palm', count: 1 });
   assert.deepEqual(row.payload.handPortions, { palms: 1, fists: 0, cupped: 0, thumbs: 0 });
+  assert.equal(row.payload.wholeFoodLevel, 'whole');
 
   const water = { date: '2026-11-05', glasses: 8, updatedAt: nowIso };
   const wRow = rowFor('water_logs', water, new Map());

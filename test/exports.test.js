@@ -62,9 +62,12 @@ test('fuelCsv exports portions, macros and quality', () => {
   assert.equal(line, '2026-11-02,2026-11-02T12:00:00.000Z,50,400,yes,2,1,1,1,');
 });
 
-test('fuelCsv marks processed food as no', () => {
-  const out = fuelCsv([{ date: '2026-11-02', isWholeFood: false, handPortions: {} }]);
-  assert.match(out, /,no,,,,,/);
+test('fuelCsv marks processed food as no and mixed food as mixed', () => {
+  const processed = fuelCsv([{ date: '2026-11-02', isWholeFood: false, handPortions: {} }]);
+  assert.match(processed, /,no,,,,,/);
+
+  const mixed = fuelCsv([{ date: '2026-11-02', wholeFoodLevel: 'mixed', handPortions: {} }]);
+  assert.match(mixed, /,mixed,,,,,/);
 });
 
 test('waterCsv and recoveryCsv sort and keep empty metrics blank', () => {
@@ -117,6 +120,14 @@ test('weeklyMarkdown totals fuel and water', () => {
   const waterLogs = [{ date: '2026-11-02', glasses: 8 }];
   const md = weeklyMarkdown({ fuelLogs, waterLogs, weekStart: '2026-11-02' });
   assert.match(md, /\| 80 g \| 700 kcal \| 50% \| 8 glasses \|/);
+});
+
+test('weeklyMarkdown weights mixed fuel at half whole', () => {
+  const md = weeklyMarkdown({
+    fuelLogs: [{ date: '2026-11-02', proteinGrams: 25, calories: 200, wholeFoodLevel: 'mixed' }],
+    weekStart: '2026-11-02',
+  });
+  assert.match(md, /\| 25 g \| 200 kcal \| 50% \| — \|/);
 });
 
 test('weeklyMarkdown writes friendly empty sections', () => {
